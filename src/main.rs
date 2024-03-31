@@ -1,6 +1,9 @@
+use std::fs::OpenOptions;
+
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tracing::info;
 
 #[derive(Debug)]
 struct Backend {
@@ -13,13 +16,41 @@ impl LanguageServer for Backend {
         self.client
             .log_message(MessageType::INFO, "initializing server...")
             .await;
-        Ok(InitializeResult::default())
+
+        let capas = ServerCapabilities {
+            hover_provider: Some(HoverProviderCapability::Simple(true)),
+            ..Default::default()
+        };
+
+        let res = InitializeResult {
+            capabilities: capas,
+            ..Default::default()
+        };
+
+        Ok(res)
     }
 
     async fn initialized(&self, _: InitializedParams) {
         self.client
             .log_message(MessageType::INFO, "server initialized!")
             .await;
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        info!("file saved: {:?}", params);
+        self.client
+            .log_message(MessageType::INFO, format!("file saved: {:?}", params))
+            .await;
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        info!("hover: {:?}", params);
+        let hover = Hover {
+            contents: HoverContents::Scalar(MarkedString::String("hello hover".to_string())),
+            range: None,
+        };
+
+        Ok(Some(hover))
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -29,7 +60,13 @@ impl LanguageServer for Backend {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    let log_file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(std::env::var("KOTLIN_LS_LOG").unwrap())
+        .unwrap();
+    tracing_subscriber::fmt().with_writer(log_file).init();
+
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
