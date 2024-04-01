@@ -1,4 +1,5 @@
 use std::fs::{self, OpenOptions};
+use std::panic::PanicInfo;
 use std::path::PathBuf;
 
 use dashmap::DashMap;
@@ -28,6 +29,7 @@ impl Backend {
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        info!("general: {:?}", params.capabilities);
         info!("client-info: {:?}", params.client_info);
         info!("root-uri: {:?}", params.root_uri);
 
@@ -111,10 +113,10 @@ impl LanguageServer for Backend {
                 let function = tree::get_function(&tree, &content, name).unwrap();
 
                 Hover {
-                    contents: HoverContents::Scalar(MarkedString::from_language_code(
-                        "Kotlin".to_string(),
-                        function,
-                    )),
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```kotlin\n{function}\n```"),
+                    }),
                     range: None,
                 }
             }
@@ -135,8 +137,33 @@ impl LanguageServer for Backend {
     }
 }
 
+pub fn panic_hook(panic_info: &PanicInfo) {
+    let payload = panic_info.payload();
+
+    #[allow(clippy::manual_map)]
+    let payload = if let Some(s) = payload.downcast_ref::<&str>() {
+        Some(&**s)
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        Some(s.as_str())
+    } else {
+        None
+    };
+
+    let location = panic_info.location().map(|l| l.to_string());
+
+    tracing::error!(
+        panic.payload = payload,
+        panic.location = location,
+        "A panic occurred",
+    );
+}
+
 #[tokio::main]
 async fn main() {
+    let _ = std::panic::catch_unwind(|| {
+        std::panic::set_hook(Box::new(panic_hook));
+        panic!("This is a static panic message");
+    });
     let log_file = OpenOptions::new()
         .append(true)
         .create(true)

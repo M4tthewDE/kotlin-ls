@@ -40,16 +40,20 @@ pub fn get_function(tree: &Tree, content: &str, name: &str) -> Option<String> {
         if node.utf8_text(&content.as_bytes()).unwrap() == name
             && node.parent().unwrap().kind() == "function_declaration"
         {
-            let parent = node.parent().unwrap();
-            info!("{:?}", parent);
-            return Some(
-                content
-                    .lines()
-                    .skip(parent.start_position().row)
-                    .take(parent.end_position().row + 1 - parent.start_position().row)
-                    .collect::<Vec<&str>>()
-                    .join("\n"),
-            );
+            // FIXME: this probably breaks for functions with more than one modifier
+            let modifier_node = node.prev_sibling().unwrap().prev_sibling().unwrap();
+            let modifier_text = modifier_node.utf8_text(&content.as_bytes()).unwrap();
+
+            let params_node = node.next_sibling().unwrap();
+            let params_text = params_node.utf8_text(&content.as_bytes()).unwrap();
+
+            let return_node = params_node.next_sibling().unwrap().next_sibling().unwrap();
+            let return_text = return_node.utf8_text(&content.as_bytes()).unwrap();
+            info!("{modifier_text} fun {name}{params_text}: {return_text}");
+
+            return Some(format!(
+                "{modifier_text} fun {name}{params_text}: {return_text}"
+            ));
         }
 
         if cursor.goto_first_child() {
