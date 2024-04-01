@@ -9,6 +9,8 @@ use tracing::{info, warn};
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
+mod tree;
+
 struct Backend {
     client: Client,
     trees: DashMap<PathBuf, (Tree, String)>,
@@ -92,35 +94,7 @@ impl LanguageServer for Backend {
             .to_owned();
 
         let pos = params.text_document_position_params.position;
-
-        let mut cursor = tree.walk();
-        let mut target_node = None;
-        'outer: loop {
-            let node = cursor.node();
-            if node.start_position().row <= pos.line as usize
-                && node.start_position().column <= pos.character as usize
-                && node.end_position().row >= pos.line as usize
-                && node.end_position().column >= pos.character as usize
-            {
-                target_node = Some(node);
-            }
-
-            if cursor.goto_first_child() {
-                continue;
-            }
-
-            loop {
-                if cursor.goto_next_sibling() {
-                    break;
-                }
-
-                if !cursor.goto_parent() {
-                    break 'outer;
-                }
-            }
-        }
-
-        let target_node = target_node.unwrap();
+        let target_node = tree::get_node(&tree, &pos).unwrap();
 
         info!(
             "[target_node] kind: {} | code: {} | start: {} | end: {}",
@@ -132,12 +106,18 @@ impl LanguageServer for Backend {
 
         let parent = target_node.parent().unwrap();
         let hover = match parent.kind() {
-            "call_expression" => Hover {
-                contents: HoverContents::Scalar(MarkedString::String(
-                    "TODO: call_expression".to_string(),
-                )),
-                range: None,
-            },
+            "call_expression" => {
+                let name = target_node.utf8_text(&content.as_bytes()).unwrap();
+                let function = tree::get_function(&tree, &content, name).unwrap();
+
+                Hover {
+                    contents: HoverContents::Scalar(MarkedString::from_language_code(
+                        "Kotlin".to_string(),
+                        function,
+                    )),
+                    range: None,
+                }
+            }
             _ => Hover {
                 contents: HoverContents::Scalar(MarkedString::String(format!(
                     "{} is not supported yet",
