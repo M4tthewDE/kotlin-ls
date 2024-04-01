@@ -1,6 +1,5 @@
-use std::fs::{self, File, OpenOptions};
-use std::os::fd::AsRawFd;
-use std::path::{Path, PathBuf};
+use std::fs::{self, OpenOptions};
+use std::path::PathBuf;
 
 use dashmap::DashMap;
 use tower_lsp::jsonrpc::Result;
@@ -9,8 +8,6 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::{info, warn};
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
-
-mod kotlin;
 
 struct Backend {
     client: Client,
@@ -93,38 +90,43 @@ impl LanguageServer for Backend {
             )
             .unwrap();
 
-        // for debugging
-        // let f = File::create("/home/matti/Programming/kotlin-ls/graph.dot").unwrap();
-        // tree.print_dot_graph(&f.as_raw_fd());
+        let pos = params.text_document_position_params.position;
 
         let mut cursor = tree.walk();
-        loop {
+        let mut target_node = None;
+        'outer: loop {
             let node = cursor.node();
-            info!(
-                "node kind {}, start: {}, end: {}",
-                node.kind(),
-                node.start_position(),
-                node.end_position(),
-            );
+            if node.start_position().row <= pos.line as usize
+                && node.start_position().column <= pos.character as usize
+                && node.end_position().row >= pos.line as usize
+                && node.end_position().column >= pos.character as usize
+            {
+                target_node = Some(node);
+            }
 
             if cursor.goto_first_child() {
                 continue;
             }
 
-            if cursor.goto_next_sibling() {
-                continue;
-            }
-
-            while !cursor.goto_parent() || !cursor.goto_next_sibling() {
-                if !cursor.goto_parent() {
+            loop {
+                if cursor.goto_next_sibling() {
                     break;
                 }
-            }
 
-            if cursor.node() == tree.root_node() {
-                break;
+                if !cursor.goto_parent() {
+                    break 'outer;
+                }
             }
         }
+
+        let target_node = target_node.unwrap();
+
+        info!(
+            "kind: {} | start: {} | end: {}",
+            target_node.kind(),
+            target_node.start_position(),
+            target_node.end_position(),
+        );
 
         let hover = Hover {
             contents: HoverContents::Scalar(MarkedString::String("hello hover".to_string())),
