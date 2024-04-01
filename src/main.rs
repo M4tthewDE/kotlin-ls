@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 
 struct Backend {
     client: Client,
-    trees: DashMap<PathBuf, Tree>,
+    trees: DashMap<PathBuf, (Tree, String)>,
 }
 
 impl Backend {
@@ -39,8 +39,8 @@ impl LanguageServer for Backend {
             .map(|e| e.into_path())
         {
             let content = fs::read_to_string(&path).unwrap();
-            let tree = parser.parse(content, None).unwrap();
-            self.trees.insert(path, tree);
+            let tree = parser.parse(&content, None).unwrap();
+            self.trees.insert(path, (tree, content));
         }
 
         info!("parsed {} trees", self.trees.len());
@@ -78,7 +78,7 @@ impl LanguageServer for Backend {
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         info!("hover: {:?}", params);
-        let tree = self
+        let (tree, content) = self
             .trees
             .get(
                 &params
@@ -88,7 +88,8 @@ impl LanguageServer for Backend {
                     .to_file_path()
                     .unwrap(),
             )
-            .unwrap();
+            .unwrap()
+            .to_owned();
 
         let pos = params.text_document_position_params.position;
 
@@ -122,15 +123,28 @@ impl LanguageServer for Backend {
         let target_node = target_node.unwrap();
 
         info!(
-            "kind: {} | start: {} | end: {}",
+            "[target_node] kind: {} | code: {} | start: {} | end: {}",
             target_node.kind(),
+            target_node.utf8_text(&content.as_bytes()).unwrap(),
             target_node.start_position(),
             target_node.end_position(),
         );
 
-        let hover = Hover {
-            contents: HoverContents::Scalar(MarkedString::String("hello hover".to_string())),
-            range: None,
+        let parent = target_node.parent().unwrap();
+        let hover = match parent.kind() {
+            "call_expression" => Hover {
+                contents: HoverContents::Scalar(MarkedString::String(
+                    "TODO: call_expression".to_string(),
+                )),
+                range: None,
+            },
+            _ => Hover {
+                contents: HoverContents::Scalar(MarkedString::String(format!(
+                    "{} is not supported yet",
+                    parent.kind()
+                ))),
+                range: None,
+            },
         };
 
         Ok(Some(hover))
