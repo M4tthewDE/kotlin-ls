@@ -58,7 +58,15 @@ impl Backend {
                                     Some(Hover {
                                         contents: HoverContents::Markup(MarkupContent {
                                             kind: MarkupKind::Markdown,
-                                            value: format!("```kotlin\n{s}\n```"),
+                                            value: format!(
+                                                "{}\n---\n```kotlin\n{s}\n```",
+                                                entry
+                                                    .key()
+                                                    .file_name()
+                                                    .map(|o| o.to_str())
+                                                    .unwrap_or_default()
+                                                    .unwrap_or_default()
+                                            ),
                                         }),
                                         range: None,
                                     })
