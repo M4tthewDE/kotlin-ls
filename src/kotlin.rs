@@ -10,17 +10,20 @@ pub struct KotlinFile {
     pub path: PathBuf,
     pub package: String,
     pub imports: Vec<String>,
+    pub classes: Vec<String>,
 }
 
 impl KotlinFile {
     fn new(path: PathBuf, tree: &Tree, content: String) -> Result<KotlinFile> {
         let package = get_package(tree, &content)?;
         let imports = get_imports(tree, &content)?;
+        let classes = get_classes(tree, &content)?;
 
         Ok(KotlinFile {
             path,
             package,
             imports,
+            classes,
         })
     }
 }
@@ -85,6 +88,40 @@ fn get_imports(tree: &Tree, content: &str) -> Result<Vec<String>> {
     }
 }
 
+fn get_classes(tree: &Tree, content: &str) -> Result<Vec<String>> {
+    let mut classes = Vec::new();
+    let mut cursor = tree.walk();
+    loop {
+        let node = cursor.node();
+        if node.kind() == "class_declaration" {
+            for child in node.children(&mut cursor) {
+                if child.kind() == "type_identifier" {
+                    classes.push(
+                        child
+                            .utf8_text(content.as_bytes())
+                            .context("malformed class")?
+                            .to_string(),
+                    );
+                }
+            }
+        }
+
+        if cursor.goto_first_child() {
+            continue;
+        }
+
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+
+            if !cursor.goto_parent() {
+                return Ok(classes);
+            }
+        }
+    }
+}
+
 pub struct KotlinProject {
     pub files: Vec<KotlinFile>,
 }
@@ -118,8 +155,6 @@ impl KotlinProject {
 mod tests {
     use std::path::Path;
 
-    use tracing::debug;
-
     use crate::kotlin::KotlinProject;
 
     #[test]
@@ -129,7 +164,7 @@ mod tests {
 
         let project = KotlinProject::new(&p).unwrap();
         for file in project.files {
-            debug!("{file:?}");
+            dbg!(file);
         }
     }
 }
