@@ -10,6 +10,7 @@ use tracing::{info, warn};
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
+mod hover;
 mod tree;
 
 struct Backend {
@@ -95,51 +96,9 @@ impl LanguageServer for Backend {
             .to_owned();
 
         let pos = params.text_document_position_params.position;
-        let target_node = tree::get_node(&tree, &pos).unwrap();
+        let hover = hover::get_hover(&pos, &tree, &content);
 
-        info!(
-            "[target_node] kind: {} | code: {} | start: {} | end: {}",
-            target_node.kind(),
-            target_node.utf8_text(content.as_bytes()).unwrap(),
-            target_node.start_position(),
-            target_node.end_position(),
-        );
-
-        let parent = target_node.parent().unwrap();
-        let hover = match parent.kind() {
-            "call_expression" => {
-                let name = target_node.utf8_text(content.as_bytes()).unwrap();
-                let function = tree::get_function(&tree, &content, name).unwrap();
-
-                Hover {
-                    contents: HoverContents::Markup(MarkupContent {
-                        kind: MarkupKind::Markdown,
-                        value: format!("```kotlin\n{function}\n```"),
-                    }),
-                    range: None,
-                }
-            }
-            "navigation_expression" => {
-                let name = target_node.utf8_text(content.as_bytes()).unwrap();
-                let navigation = tree::get_navigation(&tree, &content, name).unwrap();
-                Hover {
-                    contents: HoverContents::Markup(MarkupContent {
-                        kind: MarkupKind::Markdown,
-                        value: format!("```kotlin\n{navigation}\n```"),
-                    }),
-                    range: None,
-                }
-            }
-            _ => Hover {
-                contents: HoverContents::Scalar(MarkedString::String(format!(
-                    "{} is not supported yet",
-                    parent.kind()
-                ))),
-                range: None,
-            },
-        };
-
-        Ok(Some(hover))
+        Ok(hover)
     }
 
     async fn shutdown(&self) -> Result<()> {
