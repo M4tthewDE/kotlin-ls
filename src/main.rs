@@ -3,7 +3,7 @@ use std::panic::PanicInfo;
 use std::path::PathBuf;
 
 use dashmap::DashMap;
-use tower_lsp::jsonrpc::Result;
+use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::{info, warn};
@@ -96,9 +96,11 @@ impl LanguageServer for Backend {
             .to_owned();
 
         let pos = params.text_document_position_params.position;
-        let hover = hover::get_hover(&pos, &tree, &content);
-
-        Ok(hover)
+        hover::get_hover(&pos, &tree, &content).map_err(|err| Error {
+            code: ErrorCode::InternalError,
+            message: err.to_string().into(),
+            data: None,
+        })
     }
 
     async fn shutdown(&self) -> Result<()> {
