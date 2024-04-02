@@ -29,7 +29,6 @@ impl Backend {
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        info!("general: {:?}", params.capabilities);
         info!("client-info: {:?}", params.client_info);
         info!("root-uri: {:?}", params.root_uri);
 
@@ -186,5 +185,6 @@ async fn main() {
     let stdout = tokio::io::stdout();
 
     let (service, socket) = LspService::new(Backend::new);
+    info!("starting server");
     Server::new(stdin, stdout, socket).serve(service).await;
 }

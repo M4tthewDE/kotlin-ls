@@ -36,28 +36,27 @@ pub fn get_function(tree: &Tree, content: &str, name: &str) -> Option<String> {
 
     loop {
         let node = cursor.node();
-        if node.utf8_text(content.as_bytes()).unwrap() == name
-            && node.parent().unwrap().kind() == "function_declaration"
+        if node.utf8_text(content.as_bytes()).ok()? == name
+            && node.parent()?.kind() == "function_declaration"
         {
             let mut result = String::new();
 
-            let modifier_node = node.prev_sibling().unwrap().prev_sibling().unwrap();
-            result.push_str(modifier_node.utf8_text(content.as_bytes()).unwrap());
+            let modifier_node = node.prev_sibling()?.prev_sibling()?;
+            result.push_str(modifier_node.utf8_text(content.as_bytes()).ok()?);
             result.push_str(" fun ");
             result.push_str(name);
 
-            let params_node = node.next_sibling().unwrap();
-            result.push_str(params_node.utf8_text(content.as_bytes()).unwrap());
+            let params_node = node.next_sibling()?;
+            result.push_str(params_node.utf8_text(content.as_bytes()).ok()?);
 
             if let Some(colon_node) = params_node.next_sibling() {
                 if colon_node.kind() == ":" {
                     result.push_str(": ");
                     result.push_str(
                         colon_node
-                            .next_sibling()
-                            .unwrap()
+                            .next_sibling()?
                             .utf8_text(content.as_bytes())
-                            .unwrap(),
+                            .ok()?,
                     );
                 }
             }
@@ -86,50 +85,46 @@ pub fn get_navigation(tree: &Tree, content: &str, name: &str) -> Option<String> 
 
     loop {
         let node = cursor.node();
-        if node.utf8_text(content.as_bytes()).unwrap() == name {
+        if node.utf8_text(content.as_bytes()).ok()? == name {
             match node.kind() {
                 "variable_declaration" => {
                     let mut result = String::new();
 
-                    let modifier = node.prev_sibling().unwrap().prev_sibling().unwrap();
-                    result.push_str(modifier.utf8_text(content.as_bytes()).unwrap());
+                    let modifier = node.prev_sibling()?.prev_sibling()?;
+                    result.push_str(modifier.utf8_text(content.as_bytes()).ok()?);
                     result.push(' ');
 
-                    let val = node.prev_sibling().unwrap();
-                    result.push_str(val.utf8_text(content.as_bytes()).unwrap());
+                    let val = node.prev_sibling()?;
+                    result.push_str(val.utf8_text(content.as_bytes()).ok()?);
                     result.push(' ');
                     result.push_str(name);
                     result.push_str(" = ");
                     result.push_str(
-                        node.next_sibling()
-                            .unwrap()
-                            .next_sibling()
-                            .unwrap()
+                        node.next_sibling()?
+                            .next_sibling()?
                             .utf8_text(content.as_bytes())
-                            .unwrap(),
+                            .ok()?,
                     );
 
                     return Some(result);
                 }
                 _ => {
-                    if node.parent().unwrap().kind() == "class_parameter" {
+                    if node.parent()?.kind() == "class_parameter" {
                         let mut result = String::new();
-                        let modifier = node.prev_sibling().unwrap().prev_sibling().unwrap();
-                        result.push_str(modifier.utf8_text(content.as_bytes()).unwrap());
+                        let modifier = node.prev_sibling()?.prev_sibling()?;
+                        result.push_str(modifier.utf8_text(content.as_bytes()).ok()?);
                         result.push(' ');
 
-                        let val = node.prev_sibling().unwrap();
-                        result.push_str(val.utf8_text(content.as_bytes()).unwrap());
+                        let val = node.prev_sibling()?;
+                        result.push_str(val.utf8_text(content.as_bytes()).ok()?);
                         result.push(' ');
                         result.push_str(name);
                         result.push_str(": ");
                         result.push_str(
-                            node.next_sibling()
-                                .unwrap()
-                                .next_sibling()
-                                .unwrap()
+                            node.next_sibling()?
+                                .next_sibling()?
                                 .utf8_text(content.as_bytes())
-                                .unwrap(),
+                                .ok()?,
                         );
                         return Some(result);
                     }
