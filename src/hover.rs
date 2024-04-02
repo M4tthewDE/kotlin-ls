@@ -46,8 +46,6 @@ impl Backend {
                 let nav_type = tree::get_navigation_type(tree, content, nav_name)
                     .context("no type for navigation expression found")?;
 
-                info!("type: {}", nav_type);
-
                 for entry in self.trees.iter() {
                     if let Some(stem) = entry.key().file_stem() {
                         if stem == nav_type.as_str() {
@@ -75,7 +73,7 @@ impl Backend {
                     }
                 }
 
-                bail!("todo");
+                bail!("No file found for {nav_type}");
             }
 
             _ => Err(anyhow!("{} is not supported", parent.kind())),
