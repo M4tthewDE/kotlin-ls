@@ -1,5 +1,4 @@
 use tower_lsp::lsp_types::Position;
-use tracing::info;
 use tree_sitter::{Node, Tree};
 
 pub fn get_node<'a>(tree: &'a Tree, pos: &Position) -> Option<Node<'a>> {
@@ -40,22 +39,30 @@ pub fn get_function(tree: &Tree, content: &str, name: &str) -> Option<String> {
         if node.utf8_text(content.as_bytes()).unwrap() == name
             && node.parent().unwrap().kind() == "function_declaration"
         {
-            // FIXME: this probably breaks for functions with more than one modifier
-            // this actually breaks for a lot of cases
-            // for example UserDisplayViewmodel.kt:59
+            let mut result = String::new();
+
             let modifier_node = node.prev_sibling().unwrap().prev_sibling().unwrap();
-            let modifier_text = modifier_node.utf8_text(content.as_bytes()).unwrap();
+            result.push_str(modifier_node.utf8_text(content.as_bytes()).unwrap());
+            result.push_str(" fun ");
+            result.push_str(name);
 
             let params_node = node.next_sibling().unwrap();
-            let params_text = params_node.utf8_text(content.as_bytes()).unwrap();
+            result.push_str(params_node.utf8_text(content.as_bytes()).unwrap());
 
-            let return_node = params_node.next_sibling().unwrap().next_sibling().unwrap();
-            let return_text = return_node.utf8_text(content.as_bytes()).unwrap();
-            info!("{modifier_text} fun {name}{params_text}: {return_text}");
+            if let Some(colon_node) = params_node.next_sibling() {
+                if colon_node.kind() == ":" {
+                    result.push_str(": ");
+                    result.push_str(
+                        colon_node
+                            .next_sibling()
+                            .unwrap()
+                            .utf8_text(content.as_bytes())
+                            .unwrap(),
+                    );
+                }
+            }
 
-            return Some(format!(
-                "{modifier_text} fun {name}{params_text}: {return_text}"
-            ));
+            return Some(result);
         }
 
         if cursor.goto_first_child() {
