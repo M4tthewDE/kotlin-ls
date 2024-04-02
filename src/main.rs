@@ -11,6 +11,7 @@ use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
 mod hover;
+pub mod kotlin;
 mod tree;
 
 struct Backend {
