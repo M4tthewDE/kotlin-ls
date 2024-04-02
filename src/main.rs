@@ -120,6 +120,17 @@ impl LanguageServer for Backend {
                     range: None,
                 }
             }
+            "navigation_expression" => {
+                let name = target_node.utf8_text(content.as_bytes()).unwrap();
+                let navigation = tree::get_navigation(&tree, &content, name).unwrap();
+                Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!("```kotlin\n{navigation}\n```"),
+                    }),
+                    range: None,
+                }
+            }
             _ => Hover {
                 contents: HoverContents::Scalar(MarkedString::String(format!(
                     "{} is not supported yet",
