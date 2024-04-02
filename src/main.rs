@@ -101,7 +101,7 @@ impl LanguageServer for Backend {
         info!(
             "[target_node] kind: {} | code: {} | start: {} | end: {}",
             target_node.kind(),
-            target_node.utf8_text(&content.as_bytes()).unwrap(),
+            target_node.utf8_text(content.as_bytes()).unwrap(),
             target_node.start_position(),
             target_node.end_position(),
         );
@@ -109,7 +109,7 @@ impl LanguageServer for Backend {
         let parent = target_node.parent().unwrap();
         let hover = match parent.kind() {
             "call_expression" => {
-                let name = target_node.utf8_text(&content.as_bytes()).unwrap();
+                let name = target_node.utf8_text(content.as_bytes()).unwrap();
                 let function = tree::get_function(&tree, &content, name).unwrap();
 
                 Hover {
@@ -174,6 +174,6 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend::new(client));
+    let (service, socket) = LspService::new(Backend::new);
     Server::new(stdin, stdout, socket).serve(service).await;
 }

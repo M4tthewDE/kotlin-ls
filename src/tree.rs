@@ -37,18 +37,20 @@ pub fn get_function(tree: &Tree, content: &str, name: &str) -> Option<String> {
 
     loop {
         let node = cursor.node();
-        if node.utf8_text(&content.as_bytes()).unwrap() == name
+        if node.utf8_text(content.as_bytes()).unwrap() == name
             && node.parent().unwrap().kind() == "function_declaration"
         {
             // FIXME: this probably breaks for functions with more than one modifier
+            // this actually breaks for a lot of cases
+            // for example UserDisplayViewmodel.kt:59
             let modifier_node = node.prev_sibling().unwrap().prev_sibling().unwrap();
-            let modifier_text = modifier_node.utf8_text(&content.as_bytes()).unwrap();
+            let modifier_text = modifier_node.utf8_text(content.as_bytes()).unwrap();
 
             let params_node = node.next_sibling().unwrap();
-            let params_text = params_node.utf8_text(&content.as_bytes()).unwrap();
+            let params_text = params_node.utf8_text(content.as_bytes()).unwrap();
 
             let return_node = params_node.next_sibling().unwrap().next_sibling().unwrap();
-            let return_text = return_node.utf8_text(&content.as_bytes()).unwrap();
+            let return_text = return_node.utf8_text(content.as_bytes()).unwrap();
             info!("{modifier_text} fun {name}{params_text}: {return_text}");
 
             return Some(format!(
