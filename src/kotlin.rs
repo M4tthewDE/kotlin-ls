@@ -2,15 +2,29 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use tracing::warn;
-use tree_sitter::{Parser, Tree};
+use tree_sitter::{Node, Parser, Tree};
 use walkdir::WalkDir;
+
+#[derive(Debug)]
+pub enum ClassModifier {
+    Class(String),
+    Visibility(String),
+    Annotation(String),
+    Inheritance(String),
+}
+
+#[derive(Debug)]
+pub struct KotlinClass {
+    pub name: String,
+    pub modifiers: Vec<ClassModifier>,
+}
 
 #[derive(Debug)]
 pub struct KotlinFile {
     pub path: PathBuf,
     pub package: String,
     pub imports: Vec<String>,
-    pub classes: Vec<String>,
+    pub classes: Vec<KotlinClass>,
 }
 
 impl KotlinFile {
@@ -88,22 +102,15 @@ fn get_imports(tree: &Tree, content: &str) -> Result<Vec<String>> {
     }
 }
 
-fn get_classes(tree: &Tree, content: &str) -> Result<Vec<String>> {
+fn get_classes(tree: &Tree, content: &str) -> Result<Vec<KotlinClass>> {
     let mut classes = Vec::new();
     let mut cursor = tree.walk();
     loop {
         let node = cursor.node();
         if node.kind() == "class_declaration" {
-            for child in node.children(&mut cursor) {
-                if child.kind() == "type_identifier" {
-                    classes.push(
-                        child
-                            .utf8_text(content.as_bytes())
-                            .context("malformed class")?
-                            .to_string(),
-                    );
-                }
-            }
+            let name = get_class_name(&node, content)?;
+            let modifiers = get_class_modifiers(&node, content)?;
+            classes.push(KotlinClass { name, modifiers });
         }
 
         if cursor.goto_first_child() {
@@ -120,6 +127,48 @@ fn get_classes(tree: &Tree, content: &str) -> Result<Vec<String>> {
             }
         }
     }
+}
+
+fn get_class_name(node: &Node, content: &str) -> Result<String> {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "type_identifier" {
+            return Ok(child
+                .utf8_text(content.as_bytes())
+                .context("malformed class")?
+                .to_string());
+        }
+    }
+
+    bail!("no class name found");
+}
+
+fn get_class_modifiers(node: &Node, content: &str) -> Result<Vec<ClassModifier>> {
+    let mut modifiers: Vec<ClassModifier> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor.clone()) {
+        if child.kind() == "modifiers" {
+            for child in child.children(&mut cursor) {
+                match child.kind() {
+                    "visibility_modifier" => modifiers.push(ClassModifier::Visibility(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    "class_modifier" => modifiers.push(ClassModifier::Class(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    "annotation" => modifiers.push(ClassModifier::Annotation(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    "inheritance_modifier" => modifiers.push(ClassModifier::Inheritance(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    _ => bail!("unknown modifier {}", child.kind()),
+                }
+            }
+        }
+    }
+
+    Ok(modifiers)
 }
 
 pub struct KotlinProject {
@@ -164,7 +213,7 @@ mod tests {
 
         let project = KotlinProject::new(&p).unwrap();
         for file in project.files {
-            dbg!(file);
+            dbg!(file.classes);
         }
     }
 }
