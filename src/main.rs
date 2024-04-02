@@ -96,7 +96,7 @@ impl LanguageServer for Backend {
             .to_owned();
 
         let pos = params.text_document_position_params.position;
-        hover::get_hover(&pos, &tree, &content).map_err(|err| Error {
+        self.get_hover(&pos, &tree, &content).map_err(|err| Error {
             code: ErrorCode::InternalError,
             message: err.to_string().into(),
             data: None,

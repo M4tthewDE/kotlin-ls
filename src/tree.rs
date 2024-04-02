@@ -147,3 +147,46 @@ pub fn get_navigation(tree: &Tree, content: &str, name: &str) -> Option<String> 
         }
     }
 }
+
+pub fn get_navigation_type(tree: &Tree, content: &str, name: &str) -> Option<String> {
+    let mut cursor = tree.walk();
+
+    loop {
+        let node = cursor.node();
+        if node.utf8_text(content.as_bytes()).ok()? == name {
+            return match node.kind() {
+                "variable_declaration" => node
+                    .next_sibling()?
+                    .next_sibling()?
+                    .utf8_text(content.as_bytes())
+                    .map(|s| s.to_string())
+                    .ok(),
+                _ => {
+                    if node.parent()?.kind() == "class_parameter" {
+                        node.next_sibling()?
+                            .next_sibling()?
+                            .utf8_text(content.as_bytes())
+                            .map(|s| s.to_string())
+                            .ok()
+                    } else {
+                        None
+                    }
+                }
+            };
+        }
+
+        if cursor.goto_first_child() {
+            continue;
+        }
+
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+
+            if !cursor.goto_parent() {
+                return None;
+            }
+        }
+    }
+}
