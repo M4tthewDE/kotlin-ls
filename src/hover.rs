@@ -4,16 +4,14 @@ use tree_sitter::Tree;
 
 use crate::tree;
 
-// Error = something went wrong during parsing
-// None = we didn't find anything
 pub fn get_hover(pos: &Position, tree: &Tree, content: &str) -> Result<Option<Hover>> {
-    let node = tree::get_node(tree, pos).context("node at pos {pos} not found")?;
+    let node = tree::get_node(tree, pos).with_context(|| format!("node at {pos:?} not found"))?;
     let parent = node.parent().context("node has no parent")?;
     match parent.kind() {
         "call_expression" => {
             let name = node.utf8_text(content.as_bytes())?;
-            let function =
-                tree::get_function(tree, content, name).context("function {name} not found")?;
+            let function = tree::get_function(tree, content, name)
+                .with_context(|| format!("function {name} not found"))?;
 
             Ok(Some(Hover {
                 contents: HoverContents::Markup(MarkupContent {
@@ -26,7 +24,7 @@ pub fn get_hover(pos: &Position, tree: &Tree, content: &str) -> Result<Option<Ho
         "navigation_expression" => {
             let name = node.utf8_text(content.as_bytes())?;
             let navigation = tree::get_navigation(tree, content, name)
-                .context("navigation expression {name} not found")?;
+                .with_context(|| format!("navigation expression {name} not found"))?;
             Ok(Some(Hover {
                 contents: HoverContents::Markup(MarkupContent {
                     kind: MarkupKind::Markdown,
