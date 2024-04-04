@@ -260,10 +260,38 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
 mod test {
     use tree_sitter::Parser;
 
-    use crate::kotlin::KotlinFile;
+    use crate::kotlin::{class::Function, KotlinFile};
+
+    use super::FunctionModifier;
 
     #[test]
     fn functions() {
+        let expected = vec![
+            Function {
+                modifiers: vec![],
+                name: "add".to_string(),
+            },
+            Function {
+                modifiers: vec![FunctionModifier::Function("suspend".to_string())],
+                name: "isPalindrome".to_string(),
+            },
+            Function {
+                modifiers: vec![FunctionModifier::Visibility("private".to_string())],
+                name: "findMax".to_string(),
+            },
+            Function {
+                modifiers: vec![
+                    FunctionModifier::Function("suspend".to_string()),
+                    FunctionModifier::Visibility("private".to_string()),
+                ],
+                name: "concatenate".to_string(),
+            },
+            Function {
+                modifiers: vec![FunctionModifier::Annotation("@Bar".to_string())],
+                name: "factorial".to_string(),
+            },
+        ];
+
         let foo = include_bytes!("../../data/Foo.kt");
         let mut parser = Parser::new();
         parser.set_language(tree_sitter_kotlin::language()).unwrap();
@@ -272,7 +300,9 @@ mod test {
         let file = KotlinFile::new(&tree, foo).unwrap();
 
         let body = &file.classes.get(0).unwrap().body;
-        dbg!(body);
-        panic!();
+
+        for (actual, expected) in body.functions.iter().zip(expected) {
+            assert_eq!(*actual, expected);
+        }
     }
 }
