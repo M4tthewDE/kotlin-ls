@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use tree_sitter::Tree;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -9,11 +9,11 @@ pub fn get_package(tree: &Tree, content: &[u8]) -> Result<Package> {
     loop {
         let node = cursor.node();
         if node.kind() == "package" {
-            let package = node
-                .next_sibling()
-                .context("no package found")?
-                .utf8_text(content)?
-                .to_string();
+            let package = if let Some(p) = node.next_sibling() {
+                p.utf8_text(content)?.to_string()
+            } else {
+                "".to_string()
+            };
 
             return Ok(Package(package));
         }
@@ -28,7 +28,7 @@ pub fn get_package(tree: &Tree, content: &[u8]) -> Result<Package> {
             }
 
             if !cursor.goto_parent() {
-                bail!("no package found");
+                return Ok(Package("".to_string()));
             }
         }
     }
