@@ -4,7 +4,7 @@ use tree_sitter::Node;
 
 use crate::kotlin::Position;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyModifier {
     Annotation(String),
     Member(String),
@@ -12,10 +12,12 @@ pub enum PropertyModifier {
     Inheritance(String),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+// TODO: this belongs to class/mod.rs
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Property {
     pub modifiers: Vec<PropertyModifier>,
     pub name: String,
+    // TODO: use DataType
     pub type_identifier: Option<String>,
 }
 
@@ -152,7 +154,11 @@ impl FunctionBody {
         }
     }
 
-    fn populate_types(self, parameters: &[FunctionParameter]) -> FunctionBody {
+    fn populate_types(
+        self,
+        parameters: &[FunctionParameter],
+        class_properties: &[Property],
+    ) -> FunctionBody {
         let mut typed_identifiers: Vec<Identifier> = Vec::new();
         for identifier in self.identifiers {
             if let Some(typed_id) = typed_identifiers.iter().find(|i| i.name == identifier.name) {
@@ -169,6 +175,18 @@ impl FunctionBody {
                     name: identifier.name,
                     range: identifier.range,
                     data_type: Some(typed_id.type_identifier.clone()),
+                });
+                continue;
+            }
+
+            if let Some(typed_id) = class_properties.iter().find(|p| p.name == identifier.name) {
+                typed_identifiers.push(Identifier {
+                    name: identifier.name,
+                    range: identifier.range,
+                    data_type: typed_id
+                        .type_identifier
+                        .as_ref()
+                        .map(|t| DataType(t.to_string())),
                 });
                 continue;
             }
@@ -254,11 +272,7 @@ impl Function {
                 }
             }
 
-            if child.kind() == "user_type" {
-                return_type = Some(child.utf8_text(content)?.to_string());
-            }
-
-            if child.kind() == "nullable_type" {
+            if child.kind() == "user_type" || child.kind() == "nullable_type" {
                 return_type = Some(child.utf8_text(content)?.to_string());
             }
 
@@ -276,9 +290,9 @@ impl Function {
         })
     }
 
-    pub fn populate_types(self) -> Function {
+    pub fn populate_types(self, class_properties: &[Property]) -> Function {
         if let Some(body) = self.body {
-            let body = body.populate_types(&self.parameters);
+            let body = body.populate_types(&self.parameters, class_properties);
 
             Function {
                 modifiers: self.modifiers,

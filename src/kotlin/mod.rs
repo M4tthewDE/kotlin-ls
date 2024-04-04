@@ -113,7 +113,7 @@ mod test {
 
         let file = KotlinFile::new(&tree, foo).unwrap();
         let file = file.populate_types();
-        let pos = Position::new(5, 15);
+        let pos = Position::new(8, 15);
 
         let hover = file.hover_element(&pos).unwrap();
         assert_eq!(

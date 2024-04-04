@@ -25,11 +25,11 @@ pub struct ClassBody {
 impl ClassBody {
     fn populate_types(self) -> ClassBody {
         ClassBody {
-            properties: self.properties,
+            properties: self.properties.clone(),
             functions: self
                 .functions
                 .into_iter()
-                .map(|f| f.populate_types())
+                .map(|f| f.populate_types(&self.properties))
                 .collect(),
         }
     }
@@ -54,6 +54,7 @@ impl KotlinClass {
                 }
             }
         }
+
         None
     }
 
@@ -223,13 +224,18 @@ mod test {
                 body: Some(FunctionBody {
                     identifiers: vec![
                         Identifier {
+                            name: "test".to_string(),
+                            range: (Position::new(7, 8), Position::new(7, 12)),
+                            data_type: Some(DataType("Int".to_string())),
+                        },
+                        Identifier {
                             name: "str1".to_string(),
-                            range: (Position::new(5, 15), Position::new(5, 19)),
+                            range: (Position::new(8, 15), Position::new(8, 19)),
                             data_type: Some(DataType("String".to_string())),
                         },
                         Identifier {
                             name: "str2".to_string(),
-                            range: (Position::new(5, 22), Position::new(5, 26)),
+                            range: (Position::new(8, 22), Position::new(8, 26)),
                             data_type: Some(DataType("String".to_string())),
                         },
                     ],
