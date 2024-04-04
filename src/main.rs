@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use dashmap::DashMap;
 use kotlin::KotlinFile;
+use kotlin::Position;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
@@ -83,7 +84,8 @@ impl LanguageServer for Backend {
                 data: None,
             })?;
 
-        let pos = params.text_document_position_params.position;
+        let lsp_pos = params.text_document_position_params.position;
+        let pos = Position::new(lsp_pos.line as usize, lsp_pos.character as usize);
         self.get_hover(&path, &pos).map_err(|err| Error {
             code: ErrorCode::InternalError,
             message: err.to_string().into(),

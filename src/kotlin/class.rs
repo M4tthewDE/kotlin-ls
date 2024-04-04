@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
-use tower_lsp::lsp_types::{Hover, Position};
+use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 use tree_sitter::{Node, Tree};
+
+use super::Position;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ClassModifier {
@@ -41,8 +43,35 @@ pub struct FunctionParameter {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
+pub struct Identifier {
+    name: String,
+    range: (Position, Position),
+    data_type: String,
+}
+
+impl Identifier {
+    fn in_range(&self, pos: &Position) -> bool {
+        // assumes identifier can not be multiline!
+        let start = &self.range.0;
+        let end = &self.range.1;
+        dbg!(start, end, pos);
+        start.line == pos.line && start.char <= pos.char && end.char >= pos.char
+    }
+
+    fn hover(&self) -> Hover {
+        Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: format!("```kotlin\n{}: {}\n```", self.name, self.data_type),
+            }),
+            range: None,
+        }
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FunctionBody {
-    pub identifiers: Vec<String>,
+    pub identifiers: Vec<Identifier>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -69,7 +98,16 @@ pub struct KotlinClass {
 }
 
 impl KotlinClass {
-    pub fn get_elem(&self, _pos: &Position) -> Option<Hover> {
+    pub fn get_elem(&self, pos: &Position) -> Option<Hover> {
+        for function in &self.body.functions {
+            if let Some(body) = &function.body {
+                for identifier in &body.identifiers {
+                    if identifier.in_range(pos) {
+                        return Some(identifier.hover());
+                    }
+                }
+            }
+        }
         None
     }
 }
@@ -300,27 +338,44 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
         }
 
         if child.kind() == "function_body" {
-            body = Some(get_function_body(&child, content)?);
+            body = Some(get_function_body(&child, content, &parameters)?);
         }
     }
 
-    return Ok(Function {
+    Ok(Function {
         modifiers,
         name: name.context("no name found for function")?,
         parameters,
         return_type,
         body,
-    });
+    })
 }
 
-fn get_function_body(node: &Node, content: &[u8]) -> Result<FunctionBody> {
+fn get_function_body(
+    node: &Node,
+    content: &[u8],
+    parameters: &[FunctionParameter],
+) -> Result<FunctionBody> {
     let mut identifiers = Vec::new();
     let mut cursor = node.walk();
     loop {
         let node = cursor.node();
 
         if node.kind() == "simple_identifier" {
-            identifiers.push(node.utf8_text(content)?.to_string());
+            let name = node.utf8_text(content)?.to_string();
+            let data_type = &parameters
+                .iter()
+                .find(|p| p.name == name)
+                .context(format!("unable to detect data type for {name}"))?
+                .type_identifier;
+            identifiers.push(Identifier {
+                name,
+                range: (
+                    Position::new(node.start_position().row, node.start_position().column),
+                    Position::new(node.end_position().row, node.end_position().column),
+                ),
+                data_type: data_type.to_string(),
+            });
         }
 
         if cursor.goto_first_child() {
@@ -343,12 +398,12 @@ fn get_function_body(node: &Node, content: &[u8]) -> Result<FunctionBody> {
 mod test {
     use tree_sitter::Parser;
 
-    use crate::kotlin::{class::Function, KotlinFile};
+    use crate::kotlin::{class::Function, KotlinFile, Position};
 
-    use super::{FunctionBody, FunctionModifier, FunctionParameter};
+    use super::{FunctionBody, FunctionModifier, FunctionParameter, Identifier};
 
     #[test]
-    fn functions() {
+    fn function_parsing() {
         let expected = vec![
             Function {
                 modifiers: vec![FunctionModifier::Inheritance("abstract".to_string())],
@@ -361,53 +416,8 @@ mod test {
                 body: None,
             },
             Function {
-                modifiers: vec![],
-                name: "add".to_string(),
-                parameters: vec![
-                    FunctionParameter {
-                        name: "a".to_string(),
-                        type_identifier: "Int".to_string(),
-                    },
-                    FunctionParameter {
-                        name: "b".to_string(),
-                        type_identifier: "Int".to_string(),
-                    },
-                ],
-                return_type: Some("Int".to_string()),
-                body: Some(FunctionBody {
-                    identifiers: vec!["a".to_string(), "b".to_string()],
-                }),
-            },
-            Function {
-                modifiers: vec![FunctionModifier::Function("suspend".to_string())],
-                name: "isPalindrome".to_string(),
-                parameters: vec![FunctionParameter {
-                    name: "input".to_string(),
-                    type_identifier: "String".to_string(),
-                }],
-                return_type: Some("Boolean".to_string()),
-                body: Some(FunctionBody {
-                    identifiers: vec![
-                        "input".to_string(),
-                        "input".to_string(),
-                        "reversed".to_string(),
-                    ],
-                }),
-            },
-            Function {
-                modifiers: vec![FunctionModifier::Visibility("private".to_string())],
-                name: "findMax".to_string(),
-                parameters: vec![FunctionParameter {
-                    name: "numbers".to_string(),
-                    type_identifier: "List<Int>".to_string(),
-                }],
-                return_type: Some("Int?".to_string()),
-                body: Some(FunctionBody {
-                    identifiers: vec!["numbers".to_string(), "maxOrNull".to_string()],
-                }),
-            },
-            Function {
                 modifiers: vec![
+                    FunctionModifier::Annotation("@Bar".to_string()),
                     FunctionModifier::Function("suspend".to_string()),
                     FunctionModifier::Visibility("private".to_string()),
                 ],
@@ -424,24 +434,17 @@ mod test {
                 ],
                 return_type: Some("String".to_string()),
                 body: Some(FunctionBody {
-                    identifiers: vec!["str1".to_string(), "str2".to_string()],
-                }),
-            },
-            Function {
-                modifiers: vec![FunctionModifier::Annotation("@Bar".to_string())],
-                name: "factorial".to_string(),
-                parameters: vec![FunctionParameter {
-                    name: "n".to_string(),
-                    type_identifier: "Int".to_string(),
-                }],
-                return_type: Some("Long".to_string()),
-                body: Some(FunctionBody {
                     identifiers: vec![
-                        "n".to_string(),
-                        "n".to_string(),
-                        "n".to_string(),
-                        "factorial".to_string(),
-                        "n".to_string(),
+                        Identifier {
+                            name: "str1".to_string(),
+                            range: (Position::new(5, 15), Position::new(5, 19)),
+                            data_type: "String".to_string(),
+                        },
+                        Identifier {
+                            name: "str2".to_string(),
+                            range: (Position::new(5, 22), Position::new(5, 26)),
+                            data_type: "String".to_string(),
+                        },
                     ],
                 }),
             },

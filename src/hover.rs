@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use tower_lsp::lsp_types::{Hover, Position};
+use tower_lsp::lsp_types::Hover;
 
-use crate::Backend;
+use crate::{kotlin::Position, Backend};
 
 impl Backend {
     pub fn get_hover(&self, path: &PathBuf, pos: &Position) -> Result<Option<Hover>> {

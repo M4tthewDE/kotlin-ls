@@ -2,7 +2,7 @@ use std::{hash::Hash, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dashmap::DashMap;
-use tower_lsp::lsp_types::{Hover, Position};
+use tower_lsp::lsp_types::Hover;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
@@ -11,6 +11,18 @@ use self::{class::KotlinClass, import::Import, package::Package};
 mod class;
 mod import;
 mod package;
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct Position {
+    line: usize,
+    char: usize,
+}
+
+impl Position {
+    pub fn new(line: usize, char: usize) -> Position {
+        Position { line, char }
+    }
+}
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct KotlinFile {
@@ -65,4 +77,35 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
     }
 
     Ok(files)
+}
+
+#[cfg(test)]
+mod test {
+    use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
+    use tree_sitter::Parser;
+
+    use super::{KotlinFile, Position};
+
+    #[test]
+    fn function_parameter_hover() {
+        let foo = include_bytes!("../../data/Foo.kt");
+        let mut parser = Parser::new();
+        parser.set_language(tree_sitter_kotlin::language()).unwrap();
+        let tree = parser.parse(foo, None).unwrap();
+
+        let file = KotlinFile::new(&tree, foo).unwrap();
+        let pos = Position::new(5, 15);
+
+        let hover = file.hover_element(&pos).unwrap();
+        assert_eq!(
+            Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "```kotlin\nstr1: String\n```".to_string(),
+                }),
+                range: None,
+            },
+            hover
+        );
+    }
 }
