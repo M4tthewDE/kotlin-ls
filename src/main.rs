@@ -3,27 +3,27 @@ use std::panic::PanicInfo;
 use std::path::PathBuf;
 
 use dashmap::DashMap;
+use kotlin::KotlinFile;
 use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::{info, warn};
-use tree_sitter::{Parser, Tree};
+use tree_sitter::Parser;
 use walkdir::WalkDir;
 
 mod hover;
 pub mod kotlin;
-mod tree;
 
 struct Backend {
     client: Client,
-    trees: DashMap<PathBuf, (Tree, String)>,
+    files: DashMap<PathBuf, KotlinFile>,
 }
 
 impl Backend {
     fn new(client: Client) -> Backend {
         Backend {
             client,
-            trees: DashMap::new(),
+            files: DashMap::new(),
         }
     }
 }
@@ -43,12 +43,19 @@ impl LanguageServer for Backend {
             .filter(|e| e.path().extension().map_or(false, |ext| ext == "kt"))
             .map(|e| e.into_path())
         {
-            let content = fs::read_to_string(&path).unwrap();
+            let content = fs::read(&path).unwrap();
             let tree = parser.parse(&content, None).unwrap();
-            self.trees.insert(path, (tree, content));
+            match KotlinFile::new(&tree, &content) {
+                Ok(f) => {
+                    self.files.insert(path, f);
+                }
+                Err(err) => {
+                    warn!("{path:?}: {:?}", err);
+                }
+            }
         }
 
-        info!("parsed {} trees", self.trees.len());
+        info!("parsed {} kotlin files", self.files.len());
 
         let capas = ServerCapabilities {
             hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -83,21 +90,9 @@ impl LanguageServer for Backend {
 
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         info!("hover: {:?}", params);
-        let (tree, content) = self
-            .trees
-            .get(
-                &params
-                    .text_document_position_params
-                    .text_document
-                    .uri
-                    .to_file_path()
-                    .unwrap(),
-            )
-            .unwrap()
-            .to_owned();
 
         let pos = params.text_document_position_params.position;
-        self.get_hover(&pos, &tree, &content).map_err(|err| Error {
+        self.get_hover(&pos).map_err(|err| Error {
             code: ErrorCode::InternalError,
             message: err.to_string().into(),
             data: None,

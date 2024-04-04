@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ClassModifier {
     Class(String),
     Visibility(String),
@@ -9,7 +9,7 @@ pub enum ClassModifier {
     Inheritance(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum PropertyModifier {
     Annotation(String),
     Member(String),
@@ -17,19 +17,19 @@ pub enum PropertyModifier {
     Inheritance(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Property {
     pub modifiers: Vec<PropertyModifier>,
     pub name: String,
     pub type_identifier: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ClassBody {
     pub properties: Vec<Property>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct KotlinClass {
     pub name: String,
     pub modifiers: Vec<ClassModifier>,

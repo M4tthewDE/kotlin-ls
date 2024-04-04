@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Tree;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Package(String);
 
 pub fn get_package(tree: &Tree, content: &[u8]) -> Result<Package> {

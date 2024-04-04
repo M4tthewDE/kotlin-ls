@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use tree_sitter::Tree;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Import(String);
 
 pub fn get_imports(tree: &Tree, content: &[u8]) -> Result<Vec<Import>> {
