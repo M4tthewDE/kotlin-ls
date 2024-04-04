@@ -1,8 +1,10 @@
-use std::hash::Hash;
+use std::{hash::Hash, path::PathBuf};
 
 use anyhow::Result;
+use dashmap::DashMap;
 use tower_lsp::lsp_types::{Hover, Position};
-use tree_sitter::Tree;
+use tree_sitter::{Parser, Tree};
+use walkdir::WalkDir;
 
 use self::{class::KotlinClass, import::Import, package::Package};
 
@@ -40,4 +42,24 @@ impl KotlinFile {
 
         None
     }
+}
+
+pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
+    let mut parser = Parser::new();
+    parser.set_language(tree_sitter_kotlin::language()).unwrap();
+
+    let files = DashMap::new();
+    for path in WalkDir::new(p)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "kt"))
+        .map(|e| e.into_path())
+    {
+        let content = std::fs::read(&path).unwrap();
+        let tree = parser.parse(&content, None).unwrap();
+        files.insert(path, KotlinFile::new(&tree, &content)?);
+    }
+
+    Ok(files)
 }

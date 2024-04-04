@@ -1,4 +1,4 @@
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::panic::PanicInfo;
 use std::path::PathBuf;
 
@@ -8,8 +8,6 @@ use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::{info, warn};
-use tree_sitter::Parser;
-use walkdir::WalkDir;
 
 mod hover;
 pub mod kotlin;
@@ -34,25 +32,8 @@ impl LanguageServer for Backend {
         info!("client-info: {:?}", params.client_info);
         info!("root-uri: {:?}", params.root_uri);
 
-        let mut parser = Parser::new();
-        parser.set_language(tree_sitter_kotlin::language()).unwrap();
-        for path in WalkDir::new(params.root_uri.unwrap().path())
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_type().is_file())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "kt"))
-            .map(|e| e.into_path())
-        {
-            let content = fs::read(&path).unwrap();
-            let tree = parser.parse(&content, None).unwrap();
-            match KotlinFile::new(&tree, &content) {
-                Ok(f) => {
-                    self.files.insert(path, f);
-                }
-                Err(err) => {
-                    warn!("{path:?}: {:?}", err);
-                }
-            }
+        for file in kotlin::from_path(params.root_uri.unwrap().path()).unwrap() {
+            self.files.insert(file.0, file.1);
         }
 
         info!("parsed {} kotlin files", self.files.len());

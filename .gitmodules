@@ -1,0 +1,3 @@
+[submodule "DankChat"]
+	path = DankChat
+	url = https://github.com/flex3r/DankChat.git
