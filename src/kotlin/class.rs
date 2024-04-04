@@ -45,6 +45,7 @@ pub struct Function {
     pub modifiers: Vec<FunctionModifier>,
     pub name: String,
     pub parameters: Vec<FunctionParameter>,
+    pub return_type: Option<String>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -230,6 +231,7 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
     let mut modifiers: Vec<FunctionModifier> = Vec::new();
     let mut parameters: Vec<FunctionParameter> = Vec::new();
     let mut name = None;
+    let mut return_type = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
         if child.kind() == "modifiers" {
@@ -282,11 +284,20 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
             }
         }
 
+        if child.kind() == "user_type" {
+            return_type = Some(child.utf8_text(content)?.to_string());
+        }
+
+        if child.kind() == "nullable_type" {
+            return_type = Some(child.utf8_text(content)?.to_string());
+        }
+
         if child.kind() == "function_body" {
             return Ok(Function {
                 modifiers,
                 name: name.context("no name found for function")?,
                 parameters,
+                return_type,
             });
         }
     }
@@ -318,6 +329,7 @@ mod test {
                         type_identifier: "Int".to_string(),
                     },
                 ],
+                return_type: Some("Int".to_string()),
             },
             Function {
                 modifiers: vec![FunctionModifier::Function("suspend".to_string())],
@@ -326,6 +338,7 @@ mod test {
                     name: "input".to_string(),
                     type_identifier: "String".to_string(),
                 }],
+                return_type: Some("Boolean".to_string()),
             },
             Function {
                 modifiers: vec![FunctionModifier::Visibility("private".to_string())],
@@ -334,6 +347,7 @@ mod test {
                     name: "numbers".to_string(),
                     type_identifier: "List<Int>".to_string(),
                 }],
+                return_type: Some("Int?".to_string()),
             },
             Function {
                 modifiers: vec![
@@ -351,6 +365,7 @@ mod test {
                         type_identifier: "String".to_string(),
                     },
                 ],
+                return_type: Some("String".to_string()),
             },
             Function {
                 modifiers: vec![FunctionModifier::Annotation("@Bar".to_string())],
@@ -359,6 +374,7 @@ mod test {
                     name: "n".to_string(),
                     type_identifier: "Int".to_string(),
                 }],
+                return_type: Some("Long".to_string()),
             },
         ];
 
