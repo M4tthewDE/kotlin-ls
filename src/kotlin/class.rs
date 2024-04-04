@@ -35,9 +35,16 @@ pub enum FunctionModifier {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
+pub struct FunctionParameter {
+    pub name: String,
+    pub type_identifier: String,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Function {
     pub modifiers: Vec<FunctionModifier>,
     pub name: String,
+    pub parameters: Vec<FunctionParameter>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -221,6 +228,8 @@ fn get_property(node: &Node, content: &[u8]) -> Result<Property> {
 
 fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
     let mut modifiers: Vec<FunctionModifier> = Vec::new();
+    let mut parameters: Vec<FunctionParameter> = Vec::new();
+    let mut name = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
         if child.kind() == "modifiers" {
@@ -247,9 +256,38 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
         }
 
         if child.kind() == "simple_identifier" {
-            let name = child.utf8_text(content)?.to_string();
+            name = Some(child.utf8_text(content)?.to_string());
+        }
 
-            return Ok(Function { modifiers, name });
+        if child.kind() == "function_value_parameters" {
+            for child in child.children(&mut cursor) {
+                if child.kind() == "parameter" {
+                    let name = child
+                        .child(0)
+                        .context("no parameter name found")?
+                        .utf8_text(content)?
+                        .to_string();
+
+                    let type_identifier = child
+                        .child(2)
+                        .context("no type identifier found")?
+                        .utf8_text(content)?
+                        .to_string();
+
+                    parameters.push(FunctionParameter {
+                        name,
+                        type_identifier,
+                    })
+                }
+            }
+        }
+
+        if child.kind() == "function_body" {
+            return Ok(Function {
+                modifiers,
+                name: name.context("no name found for function")?,
+                parameters,
+            });
         }
     }
 
@@ -262,7 +300,7 @@ mod test {
 
     use crate::kotlin::{class::Function, KotlinFile};
 
-    use super::FunctionModifier;
+    use super::{FunctionModifier, FunctionParameter};
 
     #[test]
     fn functions() {
@@ -270,14 +308,32 @@ mod test {
             Function {
                 modifiers: vec![],
                 name: "add".to_string(),
+                parameters: vec![
+                    FunctionParameter {
+                        name: "a".to_string(),
+                        type_identifier: "Int".to_string(),
+                    },
+                    FunctionParameter {
+                        name: "b".to_string(),
+                        type_identifier: "Int".to_string(),
+                    },
+                ],
             },
             Function {
                 modifiers: vec![FunctionModifier::Function("suspend".to_string())],
                 name: "isPalindrome".to_string(),
+                parameters: vec![FunctionParameter {
+                    name: "input".to_string(),
+                    type_identifier: "String".to_string(),
+                }],
             },
             Function {
                 modifiers: vec![FunctionModifier::Visibility("private".to_string())],
                 name: "findMax".to_string(),
+                parameters: vec![FunctionParameter {
+                    name: "numbers".to_string(),
+                    type_identifier: "List<Int>".to_string(),
+                }],
             },
             Function {
                 modifiers: vec![
@@ -285,10 +341,24 @@ mod test {
                     FunctionModifier::Visibility("private".to_string()),
                 ],
                 name: "concatenate".to_string(),
+                parameters: vec![
+                    FunctionParameter {
+                        name: "str1".to_string(),
+                        type_identifier: "String".to_string(),
+                    },
+                    FunctionParameter {
+                        name: "str2".to_string(),
+                        type_identifier: "String".to_string(),
+                    },
+                ],
             },
             Function {
                 modifiers: vec![FunctionModifier::Annotation("@Bar".to_string())],
                 name: "factorial".to_string(),
+                parameters: vec![FunctionParameter {
+                    name: "n".to_string(),
+                    type_identifier: "Int".to_string(),
+                }],
             },
         ];
 
