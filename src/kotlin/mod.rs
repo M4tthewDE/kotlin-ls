@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use tracing::warn;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
@@ -8,6 +8,8 @@ use walkdir::WalkDir;
 use self::class::KotlinClass;
 
 mod class;
+mod import;
+mod package;
 
 #[derive(Debug)]
 pub struct KotlinFile {
@@ -19,8 +21,8 @@ pub struct KotlinFile {
 
 impl KotlinFile {
     fn new(path: PathBuf, tree: &Tree, content: &[u8]) -> Result<KotlinFile> {
-        let package = get_package(tree, content)?;
-        let imports = get_imports(tree, content)?;
+        let package = package::get_package(tree, content)?;
+        let imports = import::get_imports(tree, content)?;
         let classes = class::get_classes(tree, content)?;
 
         Ok(KotlinFile {
@@ -29,66 +31,6 @@ impl KotlinFile {
             imports,
             classes,
         })
-    }
-}
-
-fn get_package(tree: &Tree, content: &[u8]) -> Result<String> {
-    let mut cursor = tree.walk();
-    loop {
-        let node = cursor.node();
-        if node.kind() == "package" {
-            return Ok(node
-                .next_sibling()
-                .context("no package found")?
-                .utf8_text(content)?
-                .to_string());
-        }
-
-        if cursor.goto_first_child() {
-            continue;
-        }
-
-        loop {
-            if cursor.goto_next_sibling() {
-                break;
-            }
-
-            if !cursor.goto_parent() {
-                bail!("no package found");
-            }
-        }
-    }
-}
-
-fn get_imports(tree: &Tree, content: &[u8]) -> Result<Vec<String>> {
-    let mut imports = Vec::new();
-    let mut cursor = tree.walk();
-    loop {
-        let node = cursor.node();
-        if node.kind() == "import" {
-            let import = node
-                .next_sibling()
-                .context("malformed import")?
-                .utf8_text(content)
-                .context("malformed import")?
-                .to_string();
-
-            imports.push(import);
-        }
-
-        if cursor.goto_first_child() {
-            continue;
-        }
-
-        loop {
-            if cursor.goto_next_sibling() {
-                break;
-            }
-
-            if !cursor.goto_parent() {
-                return Ok(imports);
-            }
-        }
     }
 }
 
