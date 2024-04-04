@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 use tree_sitter::Node;
 
-use crate::kotlin::Position;
+use crate::kotlin::{DataType, Position};
 
 use super::Property;
 
@@ -14,9 +14,6 @@ pub enum FunctionModifier {
     Function(String),
     Inheritance(String),
 }
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct DataType(pub String);
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FunctionParameter {
@@ -115,14 +112,11 @@ impl FunctionBody {
                 continue;
             }
 
-            if let Some(typed_id) = class_properties.iter().find(|p| p.name == identifier.name) {
+            if let Some(prop) = class_properties.iter().find(|p| p.name == identifier.name) {
                 typed_identifiers.push(Identifier {
                     name: identifier.name,
                     range: identifier.range,
-                    data_type: typed_id
-                        .type_identifier
-                        .as_ref()
-                        .map(|t| DataType(t.to_string())),
+                    data_type: prop.data_type.clone(),
                 });
                 continue;
             }

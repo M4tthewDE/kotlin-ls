@@ -4,7 +4,7 @@ use tree_sitter::{Node, Tree};
 
 use self::function::Function;
 
-use super::Position;
+use super::{DataType, Position};
 
 mod function;
 
@@ -29,7 +29,7 @@ pub struct Property {
     pub modifiers: Vec<PropertyModifier>,
     pub name: String,
     // TODO: use DataType
-    pub type_identifier: Option<String>,
+    pub data_type: Option<DataType>,
 }
 
 impl Property {
@@ -63,8 +63,8 @@ impl Property {
                     .context("no name found for variable declaration")?
                     .utf8_text(content)?
                     .to_string();
-                let type_identifier = if let Some(type_node) = child.child(2) {
-                    Some(type_node.utf8_text(content)?.to_string())
+                let data_type = if let Some(type_node) = child.child(2) {
+                    Some(DataType(type_node.utf8_text(content)?.to_string()))
                 } else {
                     None
                 };
@@ -72,7 +72,7 @@ impl Property {
                 return Ok(Property {
                     modifiers,
                     name,
-                    type_identifier,
+                    data_type,
                 });
             }
         }
@@ -249,11 +249,9 @@ fn get_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
 mod test {
     use tree_sitter::Parser;
 
-    use crate::kotlin::{class::Function, KotlinFile, Position};
+    use crate::kotlin::{class::Function, DataType, KotlinFile, Position};
 
-    use super::function::{
-        DataType, FunctionBody, FunctionModifier, FunctionParameter, Identifier,
-    };
+    use super::function::{FunctionBody, FunctionModifier, FunctionParameter, Identifier};
 
     #[test]
     fn class_parsing() {
