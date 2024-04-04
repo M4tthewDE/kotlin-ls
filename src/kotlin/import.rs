@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
 use tree_sitter::Tree;
 
-pub fn get_imports(tree: &Tree, content: &[u8]) -> Result<Vec<String>> {
+#[derive(Debug)]
+pub struct Import(String);
+
+pub fn get_imports(tree: &Tree, content: &[u8]) -> Result<Vec<Import>> {
     let mut imports = Vec::new();
     let mut cursor = tree.walk();
     loop {
@@ -14,7 +17,7 @@ pub fn get_imports(tree: &Tree, content: &[u8]) -> Result<Vec<String>> {
                 .context("malformed import")?
                 .to_string();
 
-            imports.push(import);
+            imports.push(Import(import));
         }
 
         if cursor.goto_first_child() {

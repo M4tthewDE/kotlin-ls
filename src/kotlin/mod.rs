@@ -5,7 +5,7 @@ use tracing::warn;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
-use self::class::KotlinClass;
+use self::{class::KotlinClass, import::Import, package::Package};
 
 mod class;
 mod import;
@@ -14,8 +14,8 @@ mod package;
 #[derive(Debug)]
 pub struct KotlinFile {
     pub path: PathBuf,
-    pub package: String,
-    pub imports: Vec<String>,
+    pub package: Package,
+    pub imports: Vec<Import>,
     pub classes: Vec<KotlinClass>,
 }
 
