@@ -91,8 +91,19 @@ impl LanguageServer for Backend {
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         info!("hover: {:?}", params);
 
+        let path = params
+            .text_document_position_params
+            .text_document
+            .uri
+            .to_file_path()
+            .map_err(|_| Error {
+                code: ErrorCode::InternalError,
+                message: "invalid path".into(),
+                data: None,
+            })?;
+
         let pos = params.text_document_position_params.position;
-        self.get_hover(&pos).map_err(|err| Error {
+        self.get_hover(&path, &pos).map_err(|err| Error {
             code: ErrorCode::InternalError,
             message: err.to_string().into(),
             data: None,

@@ -1,6 +1,7 @@
 use std::hash::Hash;
 
 use anyhow::Result;
+use tower_lsp::lsp_types::{Hover, Position};
 use tree_sitter::Tree;
 
 use self::{class::KotlinClass, import::Import, package::Package};
@@ -27,5 +28,16 @@ impl KotlinFile {
             imports,
             classes,
         })
+    }
+
+    pub fn hover_element(&self, pos: &Position) -> Option<Hover> {
+        for class in &self.classes {
+            let elem = class.get_elem(pos);
+            if elem.is_some() {
+                return elem;
+            }
+        }
+
+        None
     }
 }

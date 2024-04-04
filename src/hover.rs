@@ -1,10 +1,17 @@
-use anyhow::{bail, Result};
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
 use tower_lsp::lsp_types::{Hover, Position};
 
 use crate::Backend;
 
 impl Backend {
-    pub fn get_hover(&self, _pos: &Position) -> Result<Option<Hover>> {
-        bail!("todo: hover");
+    pub fn get_hover(&self, path: &PathBuf, pos: &Position) -> Result<Option<Hover>> {
+        let file = self
+            .files
+            .get(path)
+            .with_context(|| format!("unknown path: {:?}", path))?;
+
+        Ok(file.hover_element(pos))
     }
 }

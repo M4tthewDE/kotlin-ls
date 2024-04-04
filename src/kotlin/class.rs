@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use tower_lsp::lsp_types::{Hover, Position};
 use tree_sitter::{Node, Tree};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -35,6 +36,12 @@ pub struct KotlinClass {
     pub modifiers: Vec<ClassModifier>,
     pub supertypes: Vec<String>,
     pub body: ClassBody,
+}
+
+impl KotlinClass {
+    pub fn get_elem(&self, _pos: &Position) -> Option<Hover> {
+        None
+    }
 }
 
 pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<KotlinClass>> {
