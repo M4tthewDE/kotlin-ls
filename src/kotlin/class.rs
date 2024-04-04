@@ -26,8 +26,24 @@ pub struct Property {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
+pub enum FunctionModifier {
+    Annotation(String),
+    Member(String),
+    Visibility(String),
+    Function(String),
+    Inheritance(String),
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct Function {
+    pub modifiers: Vec<FunctionModifier>,
+    pub name: String,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ClassBody {
     pub properties: Vec<Property>,
+    pub functions: Vec<Function>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -134,6 +150,7 @@ fn get_supertypes(node: &Node, content: &[u8]) -> Result<Vec<String>> {
 
 fn get_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
     let mut properties: Vec<Property> = Vec::new();
+    let mut functions: Vec<Function> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
         if child.kind() == "class_body" {
@@ -141,11 +158,18 @@ fn get_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
                 if child.kind() == "property_declaration" {
                     properties.push(get_property(&child, content)?);
                 }
+
+                if child.kind() == "function_declaration" {
+                    functions.push(get_function(&child, content)?);
+                }
             }
         }
     }
 
-    Ok(ClassBody { properties })
+    Ok(ClassBody {
+        properties,
+        functions,
+    })
 }
 
 fn get_property(node: &Node, content: &[u8]) -> Result<Property> {
@@ -193,4 +217,62 @@ fn get_property(node: &Node, content: &[u8]) -> Result<Property> {
     }
 
     bail!("no property found");
+}
+
+fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
+    let mut modifiers: Vec<FunctionModifier> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor.clone()) {
+        if child.kind() == "modifiers" {
+            for child in child.children(&mut cursor) {
+                match child.kind() {
+                    "annotation" => modifiers.push(FunctionModifier::Annotation(
+                        child.utf8_text(content)?.to_string(),
+                    )),
+                    "member_modifier" => modifiers.push(FunctionModifier::Member(
+                        child.utf8_text(content)?.to_string(),
+                    )),
+                    "visibility_modifier" => modifiers.push(FunctionModifier::Visibility(
+                        child.utf8_text(content)?.to_string(),
+                    )),
+                    "function_modifier" => modifiers.push(FunctionModifier::Function(
+                        child.utf8_text(content)?.to_string(),
+                    )),
+                    "inheritance_modifier" => modifiers.push(FunctionModifier::Inheritance(
+                        child.utf8_text(content)?.to_string(),
+                    )),
+                    _ => bail!("unknown modifier {}", child.kind()),
+                }
+            }
+        }
+
+        if child.kind() == "simple_identifier" {
+            let name = child.utf8_text(content)?.to_string();
+
+            return Ok(Function { modifiers, name });
+        }
+    }
+
+    bail!("no property found");
+}
+
+#[cfg(test)]
+mod test {
+    use tree_sitter::Parser;
+
+    use crate::kotlin::KotlinFile;
+
+    #[test]
+    fn functions() {
+        let foo = include_bytes!("../../data/Foo.kt");
+        let mut parser = Parser::new();
+        parser.set_language(tree_sitter_kotlin::language()).unwrap();
+        let tree = parser.parse(foo, None).unwrap();
+
+        let file = KotlinFile::new(&tree, foo).unwrap();
+
+        let body = &file.classes.get(0).unwrap().body;
+        dbg!(body);
+        panic!();
+    }
 }
