@@ -50,10 +50,10 @@ pub struct KotlinFile {
 }
 
 impl KotlinFile {
-    fn new(path: PathBuf, tree: &Tree, content: String) -> Result<KotlinFile> {
-        let package = get_package(tree, &content)?;
-        let imports = get_imports(tree, &content)?;
-        let classes = get_classes(tree, &content)?;
+    fn new(path: PathBuf, tree: &Tree, content: &[u8]) -> Result<KotlinFile> {
+        let package = get_package(tree, content)?;
+        let imports = get_imports(tree, content)?;
+        let classes = get_classes(tree, content)?;
 
         Ok(KotlinFile {
             path,
@@ -64,7 +64,7 @@ impl KotlinFile {
     }
 }
 
-fn get_package(tree: &Tree, content: &str) -> Result<String> {
+fn get_package(tree: &Tree, content: &[u8]) -> Result<String> {
     let mut cursor = tree.walk();
     loop {
         let node = cursor.node();
@@ -72,7 +72,7 @@ fn get_package(tree: &Tree, content: &str) -> Result<String> {
             return Ok(node
                 .next_sibling()
                 .context("no package found")?
-                .utf8_text(content.as_bytes())?
+                .utf8_text(content)?
                 .to_string());
         }
 
@@ -92,7 +92,7 @@ fn get_package(tree: &Tree, content: &str) -> Result<String> {
     }
 }
 
-fn get_imports(tree: &Tree, content: &str) -> Result<Vec<String>> {
+fn get_imports(tree: &Tree, content: &[u8]) -> Result<Vec<String>> {
     let mut imports = Vec::new();
     let mut cursor = tree.walk();
     loop {
@@ -101,7 +101,7 @@ fn get_imports(tree: &Tree, content: &str) -> Result<Vec<String>> {
             let import = node
                 .next_sibling()
                 .context("malformed import")?
-                .utf8_text(content.as_bytes())
+                .utf8_text(content)
                 .context("malformed import")?
                 .to_string();
 
@@ -124,7 +124,7 @@ fn get_imports(tree: &Tree, content: &str) -> Result<Vec<String>> {
     }
 }
 
-fn get_classes(tree: &Tree, content: &str) -> Result<Vec<KotlinClass>> {
+fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<KotlinClass>> {
     let mut classes = Vec::new();
     let mut cursor = tree.walk();
     loop {
@@ -158,12 +158,12 @@ fn get_classes(tree: &Tree, content: &str) -> Result<Vec<KotlinClass>> {
     }
 }
 
-fn get_class_name(node: &Node, content: &str) -> Result<String> {
+fn get_class_name(node: &Node, content: &[u8]) -> Result<String> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() == "type_identifier" {
             return Ok(child
-                .utf8_text(content.as_bytes())
+                .utf8_text(content)
                 .context("malformed class")?
                 .to_string());
         }
@@ -172,7 +172,7 @@ fn get_class_name(node: &Node, content: &str) -> Result<String> {
     bail!("no class name found");
 }
 
-fn get_class_modifiers(node: &Node, content: &str) -> Result<Vec<ClassModifier>> {
+fn get_class_modifiers(node: &Node, content: &[u8]) -> Result<Vec<ClassModifier>> {
     let mut modifiers: Vec<ClassModifier> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
@@ -180,16 +180,16 @@ fn get_class_modifiers(node: &Node, content: &str) -> Result<Vec<ClassModifier>>
             for child in child.children(&mut cursor) {
                 match child.kind() {
                     "visibility_modifier" => modifiers.push(ClassModifier::Visibility(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
-                    "class_modifier" => modifiers.push(ClassModifier::Class(
-                        child.utf8_text(content.as_bytes())?.to_string(),
-                    )),
+                    "class_modifier" => {
+                        modifiers.push(ClassModifier::Class(child.utf8_text(content)?.to_string()))
+                    }
                     "annotation" => modifiers.push(ClassModifier::Annotation(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
                     "inheritance_modifier" => modifiers.push(ClassModifier::Inheritance(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
                     _ => bail!("unknown modifier {}", child.kind()),
                 }
@@ -200,19 +200,19 @@ fn get_class_modifiers(node: &Node, content: &str) -> Result<Vec<ClassModifier>>
     Ok(modifiers)
 }
 
-fn get_supertypes(node: &Node, content: &str) -> Result<Vec<String>> {
+fn get_supertypes(node: &Node, content: &[u8]) -> Result<Vec<String>> {
     let mut supertypes: Vec<String> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() == "delegation_specifier" {
-            supertypes.push(child.utf8_text(content.as_bytes())?.to_string());
+            supertypes.push(child.utf8_text(content)?.to_string());
         }
     }
 
     Ok(supertypes)
 }
 
-fn get_class_body(node: &Node, content: &str) -> Result<ClassBody> {
+fn get_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
     let mut properties: Vec<Property> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
@@ -228,7 +228,7 @@ fn get_class_body(node: &Node, content: &str) -> Result<ClassBody> {
     Ok(ClassBody { properties })
 }
 
-fn get_property(node: &Node, content: &str) -> Result<Property> {
+fn get_property(node: &Node, content: &[u8]) -> Result<Property> {
     let mut modifiers: Vec<PropertyModifier> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
@@ -236,16 +236,16 @@ fn get_property(node: &Node, content: &str) -> Result<Property> {
             for child in child.children(&mut cursor) {
                 match child.kind() {
                     "annotation" => modifiers.push(PropertyModifier::Annotation(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
                     "member_modifier" => modifiers.push(PropertyModifier::Member(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
                     "visibility_modifier" => modifiers.push(PropertyModifier::Visibility(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
                     "inheritance_modifier" => modifiers.push(PropertyModifier::Inheritance(
-                        child.utf8_text(content.as_bytes())?.to_string(),
+                        child.utf8_text(content)?.to_string(),
                     )),
                     _ => bail!("unknown modifier {}", child.kind()),
                 }
@@ -256,10 +256,10 @@ fn get_property(node: &Node, content: &str) -> Result<Property> {
             let name = child
                 .child(0)
                 .context("no name found for variable declaration")?
-                .utf8_text(content.as_bytes())?
+                .utf8_text(content)?
                 .to_string();
             let type_identifier = if let Some(type_node) = child.child(2) {
-                Some(type_node.utf8_text(content.as_bytes())?.to_string())
+                Some(type_node.utf8_text(content)?.to_string())
             } else {
                 None
             };
@@ -292,9 +292,9 @@ impl KotlinProject {
             .filter(|e| e.path().extension().map_or(false, |ext| ext == "kt"))
             .map(|e| e.into_path())
         {
-            let content = std::fs::read_to_string(&path).unwrap();
+            let content = std::fs::read(&path).unwrap();
             let tree = parser.parse(&content, None).unwrap();
-            match KotlinFile::new(path.clone(), &tree, content) {
+            match KotlinFile::new(path.clone(), &tree, &content) {
                 Ok(f) => files.push(f),
                 Err(err) => warn!("Failed to parse {:?}: {}", path, err),
             }
