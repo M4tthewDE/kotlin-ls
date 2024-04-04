@@ -54,6 +54,19 @@ impl KotlinFile {
 
         None
     }
+
+    fn populate_types(self) -> KotlinFile {
+        let mut classes = Vec::new();
+        for class in self.classes {
+            classes.push(class.populate_types());
+        }
+
+        KotlinFile {
+            package: self.package,
+            imports: self.imports,
+            classes,
+        }
+    }
 }
 
 pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
@@ -76,7 +89,12 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
         );
     }
 
-    Ok(files)
+    let typed_files = DashMap::new();
+    for file in files {
+        typed_files.insert(file.0, file.1.populate_types());
+    }
+
+    Ok(typed_files)
 }
 
 #[cfg(test)]
@@ -94,6 +112,7 @@ mod test {
         let tree = parser.parse(foo, None).unwrap();
 
         let file = KotlinFile::new(&tree, foo).unwrap();
+        let file = file.populate_types();
         let pos = Position::new(5, 15);
 
         let hover = file.hover_element(&pos).unwrap();

@@ -46,7 +46,7 @@ pub struct FunctionParameter {
 pub struct Identifier {
     name: String,
     range: (Position, Position),
-    data_type: String,
+    data_type: Option<String>,
 }
 
 impl Identifier {
@@ -54,24 +54,58 @@ impl Identifier {
         // assumes identifier can not be multiline!
         let start = &self.range.0;
         let end = &self.range.1;
-        dbg!(start, end, pos);
         start.line == pos.line && start.char <= pos.char && end.char >= pos.char
     }
 
-    fn hover(&self) -> Hover {
-        Hover {
+    fn hover(&self) -> Option<Hover> {
+        self.data_type.as_ref().map(|data_type| Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
-                value: format!("```kotlin\n{}: {}\n```", self.name, self.data_type),
+                value: format!("```kotlin\n{}: {}\n```", self.name, data_type,),
             }),
             range: None,
-        }
+        })
     }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FunctionBody {
     pub identifiers: Vec<Identifier>,
+}
+
+impl FunctionBody {
+    fn populate_types(self, parameters: &[FunctionParameter]) -> FunctionBody {
+        let mut typed_identifiers: Vec<Identifier> = Vec::new();
+        for identifier in self.identifiers {
+            if let Some(typed_id) = typed_identifiers.iter().find(|i| i.name == identifier.name) {
+                typed_identifiers.push(Identifier {
+                    name: identifier.name,
+                    range: identifier.range,
+                    data_type: typed_id.data_type.clone(),
+                });
+                continue;
+            }
+
+            if let Some(typed_id) = parameters.iter().find(|p| p.name == identifier.name) {
+                typed_identifiers.push(Identifier {
+                    name: identifier.name,
+                    range: identifier.range,
+                    data_type: Some(typed_id.type_identifier.clone()),
+                });
+                continue;
+            }
+
+            typed_identifiers.push(Identifier {
+                name: identifier.name,
+                range: identifier.range,
+                data_type: None,
+            });
+        }
+
+        FunctionBody {
+            identifiers: typed_identifiers,
+        }
+    }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -83,10 +117,47 @@ pub struct Function {
     pub body: Option<FunctionBody>,
 }
 
+impl Function {
+    fn populate_types(self) -> Function {
+        if let Some(body) = self.body {
+            let body = body.populate_types(&self.parameters);
+
+            Function {
+                modifiers: self.modifiers,
+                name: self.name,
+                parameters: self.parameters,
+                return_type: self.return_type,
+                body: Some(body),
+            }
+        } else {
+            Function {
+                modifiers: self.modifiers,
+                name: self.name,
+                parameters: self.parameters,
+                return_type: self.return_type,
+                body: self.body,
+            }
+        }
+    }
+}
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ClassBody {
     pub properties: Vec<Property>,
     pub functions: Vec<Function>,
+}
+
+impl ClassBody {
+    fn populate_types(self) -> ClassBody {
+        ClassBody {
+            properties: self.properties,
+            functions: self
+                .functions
+                .into_iter()
+                .map(|f| f.populate_types())
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -103,12 +174,21 @@ impl KotlinClass {
             if let Some(body) = &function.body {
                 for identifier in &body.identifiers {
                     if identifier.in_range(pos) {
-                        return Some(identifier.hover());
+                        return identifier.hover();
                     }
                 }
             }
         }
         None
+    }
+
+    pub fn populate_types(self) -> KotlinClass {
+        KotlinClass {
+            name: self.name,
+            modifiers: self.modifiers,
+            supertypes: self.supertypes,
+            body: self.body.populate_types(),
+        }
     }
 }
 
@@ -338,7 +418,7 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
         }
 
         if child.kind() == "function_body" {
-            body = Some(get_function_body(&child, content, &parameters)?);
+            body = Some(get_function_body(&child, content)?);
         }
     }
 
@@ -351,11 +431,7 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
     })
 }
 
-fn get_function_body(
-    node: &Node,
-    content: &[u8],
-    parameters: &[FunctionParameter],
-) -> Result<FunctionBody> {
+fn get_function_body(node: &Node, content: &[u8]) -> Result<FunctionBody> {
     let mut identifiers = Vec::new();
     let mut cursor = node.walk();
     loop {
@@ -363,18 +439,13 @@ fn get_function_body(
 
         if node.kind() == "simple_identifier" {
             let name = node.utf8_text(content)?.to_string();
-            let data_type = &parameters
-                .iter()
-                .find(|p| p.name == name)
-                .context(format!("unable to detect data type for {name}"))?
-                .type_identifier;
             identifiers.push(Identifier {
                 name,
                 range: (
                     Position::new(node.start_position().row, node.start_position().column),
                     Position::new(node.end_position().row, node.end_position().column),
                 ),
-                data_type: data_type.to_string(),
+                data_type: None,
             });
         }
 
@@ -438,12 +509,12 @@ mod test {
                         Identifier {
                             name: "str1".to_string(),
                             range: (Position::new(5, 15), Position::new(5, 19)),
-                            data_type: "String".to_string(),
+                            data_type: Some("String".to_string()),
                         },
                         Identifier {
                             name: "str2".to_string(),
                             range: (Position::new(5, 22), Position::new(5, 26)),
-                            data_type: "String".to_string(),
+                            data_type: Some("String".to_string()),
                         },
                     ],
                 }),
@@ -456,6 +527,7 @@ mod test {
         let tree = parser.parse(foo, None).unwrap();
 
         let file = KotlinFile::new(&tree, foo).unwrap();
+        let file = file.populate_types();
 
         let body = &file.classes.get(0).unwrap().body;
 
