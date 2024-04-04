@@ -291,18 +291,14 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
         if child.kind() == "nullable_type" {
             return_type = Some(child.utf8_text(content)?.to_string());
         }
-
-        if child.kind() == "function_body" {
-            return Ok(Function {
-                modifiers,
-                name: name.context("no name found for function")?,
-                parameters,
-                return_type,
-            });
-        }
     }
 
-    bail!("no property found");
+    return Ok(Function {
+        modifiers,
+        name: name.context("no name found for function")?,
+        parameters,
+        return_type,
+    });
 }
 
 #[cfg(test)]
@@ -316,6 +312,15 @@ mod test {
     #[test]
     fn functions() {
         let expected = vec![
+            Function {
+                modifiers: vec![FunctionModifier::Inheritance("abstract".to_string())],
+                name: "onLongClick".to_string(),
+                parameters: vec![FunctionParameter {
+                    name: "view".to_string(),
+                    type_identifier: "View".to_string(),
+                }],
+                return_type: None,
+            },
             Function {
                 modifiers: vec![],
                 name: "add".to_string(),

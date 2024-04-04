@@ -1,6 +1,6 @@
 use std::{hash::Hash, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use dashmap::DashMap;
 use tower_lsp::lsp_types::{Hover, Position};
 use tree_sitter::{Parser, Tree};
@@ -58,7 +58,10 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
     {
         let content = std::fs::read(&path).unwrap();
         let tree = parser.parse(&content, None).unwrap();
-        files.insert(path, KotlinFile::new(&tree, &content)?);
+        files.insert(
+            path.clone(),
+            KotlinFile::new(&tree, &content).context(format!("file: {path:?}"))?,
+        );
     }
 
     Ok(files)
