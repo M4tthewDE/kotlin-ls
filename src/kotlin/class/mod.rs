@@ -163,11 +163,11 @@ fn get_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
         if child.kind() == "class_body" {
             for child in child.children(&mut cursor) {
                 if child.kind() == "property_declaration" {
-                    properties.push(function::get_property(&child, content)?);
+                    properties.push(Property::new(&child, content)?);
                 }
 
                 if child.kind() == "function_declaration" {
-                    functions.push(function::get_function(&child, content)?);
+                    functions.push(Function::new(&child, content)?);
                 }
             }
         }
