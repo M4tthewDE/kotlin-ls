@@ -14,10 +14,31 @@ pub enum ClassModifier {
 }
 
 #[derive(Debug)]
+pub enum PropertyModifier {
+    Annotation(String),
+    Member(String),
+    Visibility(String),
+    Inheritance(String),
+}
+
+#[derive(Debug)]
+pub struct Property {
+    pub modifiers: Vec<PropertyModifier>,
+    pub name: String,
+    pub type_identifier: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct ClassBody {
+    pub properties: Vec<Property>,
+}
+
+#[derive(Debug)]
 pub struct KotlinClass {
     pub name: String,
     pub modifiers: Vec<ClassModifier>,
     pub supertypes: Vec<String>,
+    pub body: ClassBody,
 }
 
 #[derive(Debug)]
@@ -112,10 +133,12 @@ fn get_classes(tree: &Tree, content: &str) -> Result<Vec<KotlinClass>> {
             let name = get_class_name(&node, content)?;
             let modifiers = get_class_modifiers(&node, content)?;
             let supertypes = get_supertypes(&node, content)?;
+            let body = get_class_body(&node, content)?;
             classes.push(KotlinClass {
                 name,
                 modifiers,
                 supertypes,
+                body,
             });
         }
 
@@ -187,6 +210,69 @@ fn get_supertypes(node: &Node, content: &str) -> Result<Vec<String>> {
     }
 
     Ok(supertypes)
+}
+
+fn get_class_body(node: &Node, content: &str) -> Result<ClassBody> {
+    let mut properties: Vec<Property> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor.clone()) {
+        if child.kind() == "class_body" {
+            for child in child.children(&mut cursor) {
+                if child.kind() == "property_declaration" {
+                    properties.push(get_property(&child, content)?);
+                }
+            }
+        }
+    }
+
+    Ok(ClassBody { properties })
+}
+
+fn get_property(node: &Node, content: &str) -> Result<Property> {
+    let mut modifiers: Vec<PropertyModifier> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor.clone()) {
+        if child.kind() == "modifiers" {
+            for child in child.children(&mut cursor) {
+                match child.kind() {
+                    "annotation" => modifiers.push(PropertyModifier::Annotation(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    "member_modifier" => modifiers.push(PropertyModifier::Member(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    "visibility_modifier" => modifiers.push(PropertyModifier::Visibility(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    "inheritance_modifier" => modifiers.push(PropertyModifier::Inheritance(
+                        child.utf8_text(content.as_bytes())?.to_string(),
+                    )),
+                    _ => bail!("unknown modifier {}", child.kind()),
+                }
+            }
+        }
+
+        if child.kind() == "variable_declaration" {
+            let name = child
+                .child(0)
+                .context("no name found for variable declaration")?
+                .utf8_text(content.as_bytes())?
+                .to_string();
+            let type_identifier = if let Some(type_node) = child.child(2) {
+                Some(type_node.utf8_text(content.as_bytes())?.to_string())
+            } else {
+                None
+            };
+
+            return Ok(Property {
+                modifiers,
+                name,
+                type_identifier,
+            });
+        }
+    }
+
+    bail!("no property found");
 }
 
 pub struct KotlinProject {
