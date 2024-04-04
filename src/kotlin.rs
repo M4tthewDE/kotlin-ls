@@ -17,6 +17,7 @@ pub enum ClassModifier {
 pub struct KotlinClass {
     pub name: String,
     pub modifiers: Vec<ClassModifier>,
+    pub supertypes: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -110,7 +111,12 @@ fn get_classes(tree: &Tree, content: &str) -> Result<Vec<KotlinClass>> {
         if node.kind() == "class_declaration" {
             let name = get_class_name(&node, content)?;
             let modifiers = get_class_modifiers(&node, content)?;
-            classes.push(KotlinClass { name, modifiers });
+            let supertypes = get_supertypes(&node, content)?;
+            classes.push(KotlinClass {
+                name,
+                modifiers,
+                supertypes,
+            });
         }
 
         if cursor.goto_first_child() {
@@ -171,6 +177,18 @@ fn get_class_modifiers(node: &Node, content: &str) -> Result<Vec<ClassModifier>>
     Ok(modifiers)
 }
 
+fn get_supertypes(node: &Node, content: &str) -> Result<Vec<String>> {
+    let mut supertypes: Vec<String> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "delegation_specifier" {
+            supertypes.push(child.utf8_text(content.as_bytes())?.to_string());
+        }
+    }
+
+    Ok(supertypes)
+}
+
 pub struct KotlinProject {
     pub files: Vec<KotlinFile>,
 }
@@ -213,7 +231,16 @@ mod tests {
 
         let project = KotlinProject::new(&p).unwrap();
         for file in project.files {
-            dbg!(file.classes);
+            if file
+                .path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("DankChatApplication.kt")
+            {
+                dbg!(file);
+            }
         }
     }
 }
