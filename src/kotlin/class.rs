@@ -36,17 +36,20 @@ pub enum FunctionModifier {
     Inheritance(String),
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct DataType(String);
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FunctionParameter {
     pub name: String,
-    pub type_identifier: String,
+    pub type_identifier: DataType,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Identifier {
     name: String,
     range: (Position, Position),
-    data_type: Option<String>,
+    data_type: Option<DataType>,
 }
 
 impl Identifier {
@@ -61,7 +64,7 @@ impl Identifier {
         self.data_type.as_ref().map(|data_type| Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
-                value: format!("```kotlin\n{}: {}\n```", self.name, data_type,),
+                value: format!("```kotlin\n{}: {}\n```", self.name, data_type.0,),
             }),
             range: None,
         })
@@ -403,7 +406,7 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
 
                     parameters.push(FunctionParameter {
                         name,
-                        type_identifier,
+                        type_identifier: DataType(type_identifier),
                     })
                 }
             }
@@ -471,7 +474,7 @@ mod test {
 
     use crate::kotlin::{class::Function, KotlinFile, Position};
 
-    use super::{FunctionBody, FunctionModifier, FunctionParameter, Identifier};
+    use super::{DataType, FunctionBody, FunctionModifier, FunctionParameter, Identifier};
 
     #[test]
     fn function_parsing() {
@@ -481,7 +484,7 @@ mod test {
                 name: "onLongClick".to_string(),
                 parameters: vec![FunctionParameter {
                     name: "view".to_string(),
-                    type_identifier: "View".to_string(),
+                    type_identifier: DataType("View".to_string()),
                 }],
                 return_type: None,
                 body: None,
@@ -496,11 +499,11 @@ mod test {
                 parameters: vec![
                     FunctionParameter {
                         name: "str1".to_string(),
-                        type_identifier: "String".to_string(),
+                        type_identifier: DataType("String".to_string()),
                     },
                     FunctionParameter {
                         name: "str2".to_string(),
-                        type_identifier: "String".to_string(),
+                        type_identifier: DataType("String".to_string()),
                     },
                 ],
                 return_type: Some("String".to_string()),
@@ -509,12 +512,12 @@ mod test {
                         Identifier {
                             name: "str1".to_string(),
                             range: (Position::new(5, 15), Position::new(5, 19)),
-                            data_type: Some("String".to_string()),
+                            data_type: Some(DataType("String".to_string())),
                         },
                         Identifier {
                             name: "str2".to_string(),
                             range: (Position::new(5, 22), Position::new(5, 26)),
-                            data_type: Some("String".to_string()),
+                            data_type: Some(DataType("String".to_string())),
                         },
                     ],
                 }),
