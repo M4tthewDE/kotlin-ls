@@ -41,11 +41,17 @@ pub struct FunctionParameter {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
+pub struct FunctionBody {
+    pub identifiers: Vec<String>,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Function {
     pub modifiers: Vec<FunctionModifier>,
     pub name: String,
     pub parameters: Vec<FunctionParameter>,
     pub return_type: Option<String>,
+    pub body: Option<FunctionBody>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -232,6 +238,7 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
     let mut parameters: Vec<FunctionParameter> = Vec::new();
     let mut name = None;
     let mut return_type = None;
+    let mut body = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor.clone()) {
         if child.kind() == "modifiers" {
@@ -291,6 +298,10 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
         if child.kind() == "nullable_type" {
             return_type = Some(child.utf8_text(content)?.to_string());
         }
+
+        if child.kind() == "function_body" {
+            body = Some(get_function_body(&child, content)?);
+        }
     }
 
     return Ok(Function {
@@ -298,7 +309,34 @@ fn get_function(node: &Node, content: &[u8]) -> Result<Function> {
         name: name.context("no name found for function")?,
         parameters,
         return_type,
+        body,
     });
+}
+
+fn get_function_body(node: &Node, content: &[u8]) -> Result<FunctionBody> {
+    let mut identifiers = Vec::new();
+    let mut cursor = node.walk();
+    loop {
+        let node = cursor.node();
+
+        if node.kind() == "simple_identifier" {
+            identifiers.push(node.utf8_text(content)?.to_string());
+        }
+
+        if cursor.goto_first_child() {
+            continue;
+        }
+
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+
+            if !cursor.goto_parent() {
+                return Ok(FunctionBody { identifiers });
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -307,7 +345,7 @@ mod test {
 
     use crate::kotlin::{class::Function, KotlinFile};
 
-    use super::{FunctionModifier, FunctionParameter};
+    use super::{FunctionBody, FunctionModifier, FunctionParameter};
 
     #[test]
     fn functions() {
@@ -320,6 +358,7 @@ mod test {
                     type_identifier: "View".to_string(),
                 }],
                 return_type: None,
+                body: None,
             },
             Function {
                 modifiers: vec![],
@@ -335,6 +374,9 @@ mod test {
                     },
                 ],
                 return_type: Some("Int".to_string()),
+                body: Some(FunctionBody {
+                    identifiers: vec!["a".to_string(), "b".to_string()],
+                }),
             },
             Function {
                 modifiers: vec![FunctionModifier::Function("suspend".to_string())],
@@ -344,6 +386,13 @@ mod test {
                     type_identifier: "String".to_string(),
                 }],
                 return_type: Some("Boolean".to_string()),
+                body: Some(FunctionBody {
+                    identifiers: vec![
+                        "input".to_string(),
+                        "input".to_string(),
+                        "reversed".to_string(),
+                    ],
+                }),
             },
             Function {
                 modifiers: vec![FunctionModifier::Visibility("private".to_string())],
@@ -353,6 +402,9 @@ mod test {
                     type_identifier: "List<Int>".to_string(),
                 }],
                 return_type: Some("Int?".to_string()),
+                body: Some(FunctionBody {
+                    identifiers: vec!["numbers".to_string(), "maxOrNull".to_string()],
+                }),
             },
             Function {
                 modifiers: vec![
@@ -371,6 +423,9 @@ mod test {
                     },
                 ],
                 return_type: Some("String".to_string()),
+                body: Some(FunctionBody {
+                    identifiers: vec!["str1".to_string(), "str2".to_string()],
+                }),
             },
             Function {
                 modifiers: vec![FunctionModifier::Annotation("@Bar".to_string())],
@@ -380,6 +435,15 @@ mod test {
                     type_identifier: "Int".to_string(),
                 }],
                 return_type: Some("Long".to_string()),
+                body: Some(FunctionBody {
+                    identifiers: vec![
+                        "n".to_string(),
+                        "n".to_string(),
+                        "n".to_string(),
+                        "factorial".to_string(),
+                        "n".to_string(),
+                    ],
+                }),
             },
         ];
 
