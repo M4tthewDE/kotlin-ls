@@ -1,5 +1,13 @@
 # Kotlin language server
 
+# Type inference
+
+https://papl.cs.brown.edu/2014/Type_Inference.html
+
+https://kotlinlang.org/spec/type-inference.html#type-inference
+
+https://www.gecode.org/papers/Tack_PhD_2009.pdf
+
 # Neovim configuration
 
 ```lua

@@ -28,7 +28,6 @@ pub enum PropertyModifier {
 pub struct Property {
     pub modifiers: Vec<PropertyModifier>,
     pub name: String,
-    // TODO: use DataType
     pub data_type: Option<DataType>,
 }
 
