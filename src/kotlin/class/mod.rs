@@ -3,7 +3,10 @@ use tree_sitter::{Node, Tree};
 
 use self::{function::Function, property::Property};
 
-use super::Type;
+use super::{
+    argument::{self, ValueArgument},
+    Type,
+};
 
 mod function;
 mod property;
@@ -159,17 +162,20 @@ impl Constructor {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ConstructorInvocation {
     data_type: Type,
+    arguments: Vec<ValueArgument>,
 }
 
 impl ConstructorInvocation {
     fn new(node: &Node, content: &[u8]) -> Result<ConstructorInvocation> {
         let mut data_type = None;
+        let mut arguments = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "user_type" => {
                     data_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
                 }
+                "value_arguments" => arguments = Some(argument::get_arguments(&child, content)?),
                 _ => {
                     bail!(
                         "unhandled child {} '{}' at {}",
@@ -183,6 +189,7 @@ impl ConstructorInvocation {
 
         Ok(ConstructorInvocation {
             data_type: data_type.context("no data type found")?,
+            arguments: arguments.context("no arguments found")?,
         })
     }
 }
