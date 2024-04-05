@@ -3,6 +3,8 @@ use tree_sitter::{Node, Tree};
 
 use self::{function::Function, property::Property};
 
+use super::Type;
+
 mod function;
 mod property;
 
@@ -20,12 +22,213 @@ pub struct ClassBody {
     pub functions: Vec<Function>,
 }
 
+impl ClassBody {
+    fn new(node: &Node, content: &[u8]) -> Result<ClassBody> {
+        let mut properties: Vec<Property> = Vec::new();
+        let mut functions: Vec<Function> = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor.clone()) {
+            if child.kind() == "class_body" {
+                for child in child.children(&mut cursor) {
+                    if child.kind() == "property_declaration" {
+                        properties.push(Property::new(&child, content)?);
+                    }
+
+                    if child.kind() == "function_declaration" {
+                        functions.push(Function::new(&child, content)?);
+                    }
+                }
+            }
+        }
+
+        Ok(ClassBody {
+            properties,
+            functions,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub enum ClassParameterMutability {
+    Val,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct ClassParameter {
+    mutability: ClassParameterMutability,
+    name: String,
+    data_type: Type,
+}
+
+impl ClassParameter {
+    fn new(node: &Node, content: &[u8]) -> Result<ClassParameter> {
+        let mut mutability = None;
+        let mut name = None;
+        let mut data_type = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "val" => mutability = Some(ClassParameterMutability::Val),
+                "simple_identifier" => name = Some(child.utf8_text(content)?.to_string()),
+                "user_type" => {
+                    data_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
+                }
+                "nullable_type" => {
+                    data_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
+                }
+                ":" => {}
+                _ => {
+                    bail!(
+                        "unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(ClassParameter {
+            mutability: mutability.context("no mutability found")?,
+            name: name.context("no name found")?,
+            data_type: data_type.context("no data_type found")?,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct Constructor {
+    parameters: Vec<ClassParameter>,
+}
+
+impl Constructor {
+    fn new(node: &Node, content: &[u8]) -> Result<Constructor> {
+        let mut parameters = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "(" | "," | ")" => {}
+                "class_parameter" => parameters.push(ClassParameter::new(&child, content)?),
+                _ => {
+                    bail!(
+                        "unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(Constructor { parameters })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct Delegation {
+    pub data_type: Type,
+}
+
+impl Delegation {
+    fn new(node: &Node, content: &[u8]) -> Result<Delegation> {
+        let mut data_type = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "user_type" => {
+                    data_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
+                }
+                _ => {
+                    bail!(
+                        "unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(Delegation {
+            data_type: data_type.context("no data type found")?,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub enum ClassType {
+    Class,
+    Interface,
+}
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct KotlinClass {
-    pub name: String,
+    pub class_type: ClassType,
+    pub name: Type,
     pub modifiers: Vec<ClassModifier>,
-    pub supertypes: Vec<String>,
-    pub body: ClassBody,
+    pub constructor: Option<Constructor>,
+    pub delegations: Vec<Delegation>,
+    pub body: Option<ClassBody>,
+}
+
+impl KotlinClass {
+    fn new(node: &Node, content: &[u8]) -> Result<KotlinClass> {
+        let mut modifiers = Vec::new();
+        let mut class_type = None;
+        let mut name = None;
+        let mut constructor = None;
+        let mut body = None;
+        let mut delegations = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor.clone()) {
+            match child.kind() {
+                ":" => {}
+                "modifiers" => {
+                    for child in child.children(&mut cursor) {
+                        match child.kind() {
+                            "visibility_modifier" => modifiers.push(ClassModifier::Visibility(
+                                child.utf8_text(content)?.to_string(),
+                            )),
+                            "class_modifier" => modifiers
+                                .push(ClassModifier::Class(child.utf8_text(content)?.to_string())),
+                            "annotation" => modifiers.push(ClassModifier::Annotation(
+                                child.utf8_text(content)?.to_string(),
+                            )),
+                            "inheritance_modifier" => modifiers.push(ClassModifier::Inheritance(
+                                child.utf8_text(content)?.to_string(),
+                            )),
+                            _ => bail!("unknown modifier {}", child.kind()),
+                        }
+                    }
+                }
+                "class" => class_type = Some(ClassType::Class),
+                "interface" => class_type = Some(ClassType::Interface),
+                "type_identifier" => {
+                    name = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
+                }
+                "primary_constructor" => constructor = Some(Constructor::new(&child, content)?),
+                "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
+                "class_body" => body = Some(ClassBody::new(&child, content)?),
+                _ => {
+                    bail!(
+                        "unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(KotlinClass {
+            class_type: class_type.context("no class type found")?,
+            name: name.context("no class name found")?,
+            modifiers,
+            delegations,
+            constructor,
+            body,
+        })
+    }
 }
 
 pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<KotlinClass>> {
@@ -34,16 +237,7 @@ pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<KotlinClass>> {
     loop {
         let node = cursor.node();
         if node.kind() == "class_declaration" {
-            let name = get_class_name(&node, content)?;
-            let modifiers = get_class_modifiers(&node, content)?;
-            let supertypes = get_supertypes(&node, content)?;
-            let body = get_class_body(&node, content)?;
-            classes.push(KotlinClass {
-                name,
-                modifiers,
-                supertypes,
-                body,
-            });
+            classes.push(KotlinClass::new(&node, content)?);
         }
 
         if cursor.goto_first_child() {
@@ -60,82 +254,4 @@ pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<KotlinClass>> {
             }
         }
     }
-}
-
-fn get_class_name(node: &Node, content: &[u8]) -> Result<String> {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "type_identifier" {
-            return Ok(child
-                .utf8_text(content)
-                .context("malformed class")?
-                .to_string());
-        }
-    }
-
-    bail!("no class name found");
-}
-
-fn get_class_modifiers(node: &Node, content: &[u8]) -> Result<Vec<ClassModifier>> {
-    let mut modifiers: Vec<ClassModifier> = Vec::new();
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor.clone()) {
-        if child.kind() == "modifiers" {
-            for child in child.children(&mut cursor) {
-                match child.kind() {
-                    "visibility_modifier" => modifiers.push(ClassModifier::Visibility(
-                        child.utf8_text(content)?.to_string(),
-                    )),
-                    "class_modifier" => {
-                        modifiers.push(ClassModifier::Class(child.utf8_text(content)?.to_string()))
-                    }
-                    "annotation" => modifiers.push(ClassModifier::Annotation(
-                        child.utf8_text(content)?.to_string(),
-                    )),
-                    "inheritance_modifier" => modifiers.push(ClassModifier::Inheritance(
-                        child.utf8_text(content)?.to_string(),
-                    )),
-                    _ => bail!("unknown modifier {}", child.kind()),
-                }
-            }
-        }
-    }
-
-    Ok(modifiers)
-}
-
-fn get_supertypes(node: &Node, content: &[u8]) -> Result<Vec<String>> {
-    let mut supertypes: Vec<String> = Vec::new();
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "delegation_specifier" {
-            supertypes.push(child.utf8_text(content)?.to_string());
-        }
-    }
-
-    Ok(supertypes)
-}
-
-fn get_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
-    let mut properties: Vec<Property> = Vec::new();
-    let mut functions: Vec<Function> = Vec::new();
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor.clone()) {
-        if child.kind() == "class_body" {
-            for child in child.children(&mut cursor) {
-                if child.kind() == "property_declaration" {
-                    properties.push(Property::new(&child, content)?);
-                }
-
-                if child.kind() == "function_declaration" {
-                    functions.push(Function::new(&child, content)?);
-                }
-            }
-        }
-    }
-
-    Ok(ClassBody {
-        properties,
-        functions,
-    })
 }
