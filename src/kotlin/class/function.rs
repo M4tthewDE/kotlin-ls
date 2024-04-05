@@ -1,10 +1,7 @@
 use anyhow::{bail, Context, Result};
-use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 use tree_sitter::Node;
 
 use crate::kotlin::{DataType, Position};
-
-use super::Property;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum FunctionModifier {
@@ -26,25 +23,6 @@ pub struct Identifier {
     pub name: String,
     pub range: (Position, Position),
     pub data_type: Option<DataType>,
-}
-
-impl Identifier {
-    pub fn in_range(&self, pos: &Position) -> bool {
-        // assumes identifier can not be multiline!
-        let start = &self.range.0;
-        let end = &self.range.1;
-        start.line == pos.line && start.char <= pos.char && end.char >= pos.char
-    }
-
-    pub fn hover(&self) -> Option<Hover> {
-        self.data_type.as_ref().map(|data_type| Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: format!("```kotlin\n{}: {}\n```", self.name, data_type.0,),
-            }),
-            range: None,
-        })
-    }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -84,52 +62,6 @@ impl FunctionBody {
                     return Ok(FunctionBody { identifiers });
                 }
             }
-        }
-    }
-
-    fn populate_types(
-        self,
-        parameters: &[FunctionParameter],
-        class_properties: &[Property],
-    ) -> FunctionBody {
-        let mut typed_identifiers: Vec<Identifier> = Vec::new();
-        for identifier in self.identifiers {
-            if let Some(typed_id) = typed_identifiers.iter().find(|i| i.name == identifier.name) {
-                typed_identifiers.push(Identifier {
-                    name: identifier.name,
-                    range: identifier.range,
-                    data_type: typed_id.data_type.clone(),
-                });
-                continue;
-            }
-
-            if let Some(typed_id) = parameters.iter().find(|p| p.name == identifier.name) {
-                typed_identifiers.push(Identifier {
-                    name: identifier.name,
-                    range: identifier.range,
-                    data_type: Some(typed_id.type_identifier.clone()),
-                });
-                continue;
-            }
-
-            if let Some(prop) = class_properties.iter().find(|p| p.name == identifier.name) {
-                typed_identifiers.push(Identifier {
-                    name: identifier.name,
-                    range: identifier.range,
-                    data_type: prop.data_type.clone(),
-                });
-                continue;
-            }
-
-            typed_identifiers.push(Identifier {
-                name: identifier.name,
-                range: identifier.range,
-                data_type: None,
-            });
-        }
-
-        FunctionBody {
-            identifiers: typed_identifiers,
         }
     }
 }
@@ -218,27 +150,5 @@ impl Function {
             return_type,
             body,
         })
-    }
-
-    pub fn populate_types(self, class_properties: &[Property]) -> Function {
-        if let Some(body) = self.body {
-            let body = body.populate_types(&self.parameters, class_properties);
-
-            Function {
-                modifiers: self.modifiers,
-                name: self.name,
-                parameters: self.parameters,
-                return_type: self.return_type,
-                body: Some(body),
-            }
-        } else {
-            Function {
-                modifiers: self.modifiers,
-                name: self.name,
-                parameters: self.parameters,
-                return_type: self.return_type,
-                body: self.body,
-            }
-        }
     }
 }

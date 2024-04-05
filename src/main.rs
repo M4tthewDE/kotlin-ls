@@ -4,13 +4,11 @@ use std::path::PathBuf;
 
 use dashmap::DashMap;
 use kotlin::KotlinFile;
-use kotlin::Position;
-use tower_lsp::jsonrpc::{Error, ErrorCode, Result};
+use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use tracing::{info, warn};
 
-mod hover;
 pub mod kotlin;
 
 struct Backend {
@@ -70,27 +68,8 @@ impl LanguageServer for Backend {
             .await;
     }
 
-    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
-        info!("hover: {:?}", params);
-
-        let path = params
-            .text_document_position_params
-            .text_document
-            .uri
-            .to_file_path()
-            .map_err(|_| Error {
-                code: ErrorCode::InternalError,
-                message: "invalid path".into(),
-                data: None,
-            })?;
-
-        let lsp_pos = params.text_document_position_params.position;
-        let pos = Position::new(lsp_pos.line as usize, lsp_pos.character as usize);
-        self.get_hover(&path, &pos).map_err(|err| Error {
-            code: ErrorCode::InternalError,
-            message: err.to_string().into(),
-            data: None,
-        })
+    async fn hover(&self, _: HoverParams) -> Result<Option<Hover>> {
+        Ok(None)
     }
 
     async fn shutdown(&self) -> Result<()> {
