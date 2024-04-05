@@ -12,7 +12,10 @@ mod import;
 mod package;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct DataType(pub String);
+pub enum Type {
+    Nullable(String),
+    NonNullable(String),
+}
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Position {

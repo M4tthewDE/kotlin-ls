@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use crate::kotlin::{DataType, Position};
+use crate::kotlin::{Position, Type};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum FunctionModifier {
@@ -15,14 +15,14 @@ pub enum FunctionModifier {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct FunctionParameter {
     pub name: String,
-    pub type_identifier: DataType,
+    pub type_identifier: Type,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Identifier {
     pub name: String,
     pub range: (Position, Position),
-    pub data_type: Option<DataType>,
+    pub data_type: Option<Type>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -128,7 +128,7 @@ impl Function {
 
                         parameters.push(FunctionParameter {
                             name,
-                            type_identifier: DataType(type_identifier),
+                            type_identifier: Type::Nullable(type_identifier),
                         })
                     }
                 }
