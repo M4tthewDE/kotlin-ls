@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
+use crate::kotlin::Type;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyModifier {
     Annotation(String),
@@ -19,8 +21,8 @@ pub enum PropertyMutability {
 pub struct Property {
     pub modifiers: Vec<PropertyModifier>,
     pub name: String,
-    pub data_type: Option<String>,
-    pub extension_type: Option<String>,
+    pub data_type: Option<Type>,
+    pub extension_type: Option<Type>,
     pub mutability: PropertyMutability,
 }
 
@@ -55,7 +57,12 @@ impl Property {
                 }
                 "var" => mutability = Some(PropertyMutability::Var),
                 "val" => mutability = Some(PropertyMutability::Val),
-                "user_type" => extension_type = Some(child.utf8_text(content)?.to_string()),
+                "user_type" => {
+                    extension_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
+                }
+                "nullable_type" => {
+                    extension_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
+                }
                 "variable_declaration" => {
                     let name = child
                         .child(0)
@@ -63,7 +70,7 @@ impl Property {
                         .utf8_text(content)?
                         .to_string();
                     let data_type = if let Some(type_node) = child.child(2) {
-                        Some(type_node.utf8_text(content)?.to_string())
+                        Some(Type::Nullable(type_node.utf8_text(content)?.to_string()))
                     } else {
                         None
                     };
