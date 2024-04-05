@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use crate::kotlin::{Position, Type};
+use crate::kotlin::Type;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum FunctionModifier {
@@ -21,7 +21,6 @@ pub struct FunctionParameter {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Identifier {
     pub name: String,
-    pub range: (Position, Position),
     pub data_type: Option<Type>,
 }
 
@@ -41,10 +40,6 @@ impl FunctionBody {
                 let name = node.utf8_text(content)?.to_string();
                 identifiers.push(Identifier {
                     name,
-                    range: (
-                        Position::new(node.start_position().row, node.start_position().column),
-                        Position::new(node.end_position().row, node.end_position().column),
-                    ),
                     data_type: None,
                 });
             }

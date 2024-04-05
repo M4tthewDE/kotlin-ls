@@ -20,18 +20,6 @@ pub enum Type {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
-pub struct Position {
-    line: usize,
-    char: usize,
-}
-
-impl Position {
-    pub fn new(line: usize, char: usize) -> Position {
-        Position { line, char }
-    }
-}
-
-#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct KotlinFile {
     pub package: Package,
     pub imports: Vec<Import>,
