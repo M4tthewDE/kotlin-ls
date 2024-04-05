@@ -70,7 +70,22 @@ impl Property {
                         .utf8_text(content)?
                         .to_string();
                     let data_type = if let Some(type_node) = child.child(2) {
-                        Some(Type::Nullable(type_node.utf8_text(content)?.to_string()))
+                        match type_node.kind() {
+                            "user_type" => {
+                                Some(Type::NonNullable(type_node.utf8_text(content)?.to_string()))
+                            }
+                            "nullable_type" => {
+                                Some(Type::Nullable(type_node.utf8_text(content)?.to_string()))
+                            }
+                            _ => {
+                                bail!(
+                                    "unhandled child {} '{}' at {}",
+                                    type_node.kind(),
+                                    type_node.utf8_text(content)?,
+                                    type_node.start_position(),
+                                )
+                            }
+                        }
                     } else {
                         None
                     };
