@@ -1,7 +1,6 @@
+use crate::kotlin::types::Type;
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
-
-use crate::kotlin::Type;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum FunctionModifier {

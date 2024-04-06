@@ -2,7 +2,7 @@ use crate::kotlin::modifier::Modifier;
 use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
-use super::{delegation::Delegation, function::Function, object::Object, property::Property, Type};
+use super::{delegation::Delegation, function::Function, object::Object, property::Property, types::Type};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct EnumEntry {

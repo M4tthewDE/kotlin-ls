@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::{constructor_invocation::ConstructorInvocation, Type};
+use super::{constructor_invocation::ConstructorInvocation, types::Type};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum Delegation {

@@ -4,7 +4,7 @@ use tree_sitter::Node;
 use crate::kotlin::{
     expression::Expression,
     getter::{Getter, Setter},
-    Type,
+    types::Type,
 };
 
 use super::{modifier::Modifier, variable_declaration::VariableDeclaration};

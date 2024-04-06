@@ -3,7 +3,7 @@ use tree_sitter::Node;
 
 use super::{
     argument::{self, ValueArgument},
-    Type,
+    types::Type,
 };
 
 #[derive(Debug, Hash, PartialEq, Eq)]

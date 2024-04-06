@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::Type;
+use super::types::Type;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct VariableDeclaration {

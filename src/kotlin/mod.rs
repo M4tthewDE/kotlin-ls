@@ -22,13 +22,8 @@ mod object;
 mod package;
 mod property;
 mod statement;
+mod types;
 mod variable_declaration;
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum Type {
-    Nullable(String),
-    NonNullable(String),
-}
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct KotlinFile {
