@@ -28,7 +28,7 @@ impl Object {
                 "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
                 _ => {
                     bail!(
-                        "Object: unhandled child {} '{}' at {}",
+                        "[Object] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),

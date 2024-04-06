@@ -24,7 +24,7 @@ impl Expression {
             "navigation_expression" => navigation_expression(node, content),
             _ => {
                 bail!(
-                    "unhandled child {} '{}' at {}",
+                    "[Expression] unhandled child {} '{}' at {}",
                     node.kind(),
                     node.utf8_text(content)?,
                     node.start_position(),

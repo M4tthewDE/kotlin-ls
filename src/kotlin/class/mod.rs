@@ -162,7 +162,7 @@ impl ClassParameter {
                 ":" => {}
                 _ => {
                     bail!(
-                        "ClassParameter: unhandled child {} '{}' at {}",
+                        "[ClassParameter] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
