@@ -54,7 +54,7 @@ impl Expression {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct CallSuffix {
-    arguments: Vec<ValueArgument>,
+    arguments: Option<Vec<ValueArgument>>,
     annotated_lambda: Option<AnnotatedLambda>,
 }
 
@@ -81,7 +81,7 @@ impl CallSuffix {
         }
 
         Ok(CallSuffix {
-            arguments: arguments.context("no arguments found")?,
+            arguments,
             annotated_lambda,
         })
     }
