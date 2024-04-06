@@ -1,32 +1,34 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
 use crate::kotlin::expression::Expression;
 
-use super::literal::Literal;
-
-// TODO: this feels like an enum
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ValueArgument {
-    expression: Option<Expression>,
+    expression: Expression,
     identifier: Option<String>,
-    literal: Option<Literal>,
 }
 
 impl ValueArgument {
     fn new(node: &Node, content: &[u8]) -> Result<ValueArgument> {
         let mut expression = None;
         let mut identifier = None;
-        let mut literal = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "=" => {}
-                "boolean_literal" => literal = Some(Literal::new(&child, content)?),
-                "call_expression" | "navigation_expression" | "infix_expression" => {
-                    expression = Some(Expression::new(&child, content)?)
+                "call_expression"
+                | "navigation_expression"
+                | "infix_expression"
+                | "boolean_literal" => expression = Some(Expression::new(&child, content)?),
+                "simple_identifier" => {
+                    // simple_identifier has to be followed by "=", else it's an expression
+                    if child.next_sibling().is_some() {
+                        identifier = Some(child.utf8_text(content)?.to_string());
+                    } else {
+                        expression = Some(Expression::new(&child, content)?)
+                    }
                 }
-                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
                 _ => {
                     bail!(
                         "[ValueArgument] unhandled child {} '{}' at {}",
@@ -39,9 +41,11 @@ impl ValueArgument {
         }
 
         Ok(ValueArgument {
-            expression,
+            expression: expression.context(format!(
+                "[ValueArgument] no expression found at {}",
+                node.start_position()
+            ))?,
             identifier,
-            literal,
         })
     }
 }

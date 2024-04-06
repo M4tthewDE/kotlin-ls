@@ -4,6 +4,7 @@ use tree_sitter::Node;
 use super::{
     argument::{self, ValueArgument},
     lambda::AnnotatedLambda,
+    literal::Literal,
     statement::{get_statements, Statement},
 };
 
@@ -39,6 +40,7 @@ pub enum Expression {
         middle: String,
         right: Box<Expression>,
     },
+    Literal(Literal),
 }
 
 impl Expression {
@@ -51,6 +53,7 @@ impl Expression {
             "equality_expression" => equality_expression(node, content),
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
+            "boolean_literal" => literal_expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -325,6 +328,10 @@ fn identifier_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     Ok(Expression::Identifier {
         identifier: node.utf8_text(content)?.to_string(),
     })
+}
+
+fn literal_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Literal(Literal::new(node, content)?))
 }
 
 fn infix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
