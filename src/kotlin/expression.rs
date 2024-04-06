@@ -45,6 +45,10 @@ pub enum Expression {
         subject: WhenSubject,
         entries: Vec<WhenEntry>,
     },
+    CheckIn {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
 }
 
 impl Expression {
@@ -57,6 +61,7 @@ impl Expression {
             "equality_expression" => equality_expression(node, content),
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
+            "check_expression" => check_expression(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "null" => {
                 literal_expression(node, content)
             }
@@ -404,6 +409,60 @@ fn infix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         left: Box::new(left?),
         middle,
         right: Box::new(right.context("[Expression::Equality] no right expression found")?),
+    })
+}
+
+fn check_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let mut left = None;
+    let mut right = None;
+    let mut check_type = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "in" => check_type = Some("in".to_string()),
+            "simple_identifier" => {
+                if left.is_none() {
+                    left = Some(Expression::new(&child, content)?)
+                } else {
+                    if let Some(ref c) = check_type {
+                        if c == "in" {
+                            right = Some(Expression::new(&child, content)?)
+                        } else {
+                            bail!(
+                                "[Expression::Check] invalid check type {} for {} at {}",
+                                c,
+                                child.kind(),
+                                child.start_position(),
+                            )
+                        }
+                    } else {
+                        bail!(
+                            "[Expression::Check] check type has to be known at {}",
+                            child.start_position()
+                        )
+                    }
+                }
+            }
+            _ => {
+                bail!(
+                    "[Expression::Check] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        }
+    }
+
+    Ok(Expression::CheckIn {
+        left: Box::new(left.context(format!(
+            "[Expression::Check] no left side at {}",
+            node.start_position()
+        ))?),
+        right: Box::new(right.context(format!(
+            "[Expression::Check] no right side at {}",
+            node.start_position()
+        ))?),
     })
 }
 
