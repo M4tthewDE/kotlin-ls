@@ -202,7 +202,7 @@ pub enum ClassParameterMutability {
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ClassParameter {
-    mutability: ClassParameterMutability,
+    mutability: Option<ClassParameterMutability>,
     name: String,
     data_type: Type,
     modifiers: Vec<Modifier>,
@@ -241,9 +241,15 @@ impl ClassParameter {
         }
 
         Ok(ClassParameter {
-            mutability: mutability.context("no mutability found")?,
-            name: name.context("no name found")?,
-            data_type: data_type.context("no data_type found")?,
+            mutability,
+            name: name.context(format!(
+                "[ClassParameter] no name found at {}",
+                node.start_position()
+            ))?,
+            data_type: data_type.context(format!(
+                "[ClassParameter] no data type found at {}",
+                node.start_position()
+            ))?,
             modifiers,
         })
     }
