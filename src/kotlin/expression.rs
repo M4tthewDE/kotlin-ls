@@ -129,7 +129,9 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     for child in node.children(&mut cursor) {
         match child.kind() {
             "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
-            "call_expression" => expression = Some(Expression::new(&child, content)?),
+            "call_expression" | "navigation_expression" => {
+                expression = Some(Expression::new(&child, content)?)
+            }
             "navigation_suffix" => {
                 navigation_suffix = Some(NavigationSuffix::new(&child, content)?)
             }
