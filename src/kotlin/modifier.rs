@@ -8,6 +8,7 @@ pub enum Modifier {
     Annotation(String),
     Inheritance(String),
     Member(String),
+    Property(String),
 }
 
 impl Modifier {
@@ -20,7 +21,12 @@ impl Modifier {
                 Ok(Modifier::Inheritance(node.utf8_text(content)?.to_string()))
             }
             "member_modifier" => Ok(Modifier::Member(node.utf8_text(content)?.to_string())),
-            _ => bail!("unknown modifier {}", node.kind()),
+            "property_modifier" => Ok(Modifier::Property(node.utf8_text(content)?.to_string())),
+            _ => bail!(
+                "[Modifier] unknown modifier {} at {}",
+                node.kind(),
+                node.start_position()
+            ),
         }
     }
 }
