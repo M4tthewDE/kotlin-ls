@@ -7,7 +7,7 @@ use crate::kotlin::{
     Type,
 };
 
-use super::Modifier;
+use super::modifier::Modifier;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyMutability {

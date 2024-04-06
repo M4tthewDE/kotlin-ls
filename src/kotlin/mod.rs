@@ -19,6 +19,8 @@ mod lambda;
 mod modifier;
 mod object;
 mod package;
+mod property;
+mod statement;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Type {

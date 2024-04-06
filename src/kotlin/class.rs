@@ -2,11 +2,7 @@ use crate::kotlin::modifier::Modifier;
 use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
-use self::property::Property;
-
-use super::{delegation::Delegation, function::Function, object::Object, Type};
-
-mod property;
+use super::{delegation::Delegation, function::Function, object::Object, property::Property, Type};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ClassBody {
