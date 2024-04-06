@@ -11,6 +11,7 @@ mod argument;
 mod class;
 mod expression;
 mod import;
+mod object;
 mod package;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]

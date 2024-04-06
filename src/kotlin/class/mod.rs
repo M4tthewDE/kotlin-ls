@@ -5,6 +5,7 @@ use self::{function::Function, property::Property};
 
 use super::{
     argument::{self, ValueArgument},
+    object::Object,
     Type,
 };
 
@@ -20,7 +21,7 @@ pub enum Modifier {
 }
 
 impl Modifier {
-    fn new(node: &Node, content: &[u8]) -> Result<Modifier> {
+    pub fn new(node: &Node, content: &[u8]) -> Result<Modifier> {
         match node.kind() {
             "visibility_modifier" => Ok(Modifier::Visibility(node.utf8_text(content)?.to_string())),
             "class_modifier" => Ok(Modifier::Class(node.utf8_text(content)?.to_string())),
@@ -38,6 +39,7 @@ pub enum ClassBody {
     Class {
         properties: Vec<Property>,
         functions: Vec<Function>,
+        objects: Vec<Object>,
     },
 }
 
@@ -45,6 +47,7 @@ impl ClassBody {
     fn new_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
         let mut properties: Vec<Property> = Vec::new();
         let mut functions: Vec<Function> = Vec::new();
+        let mut objects: Vec<Object> = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
@@ -54,6 +57,9 @@ impl ClassBody {
                 }
                 "function_declaration" => {
                     functions.push(Function::new(&child, content)?);
+                }
+                "object_declaration" => {
+                    objects.push(Object::new(&child, content)?);
                 }
                 _ => {
                     bail!(
@@ -69,6 +75,7 @@ impl ClassBody {
         Ok(ClassBody::Class {
             properties,
             functions,
+            objects,
         })
     }
 }
@@ -211,7 +218,7 @@ pub enum Delegation {
 }
 
 impl Delegation {
-    fn new(node: &Node, content: &[u8]) -> Result<Delegation> {
+    pub fn new(node: &Node, content: &[u8]) -> Result<Delegation> {
         let child = node.child(0).context("no delegation specifier child")?;
         match child.kind() {
             "user_type" => Ok(Delegation::Type(Type::NonNullable(
