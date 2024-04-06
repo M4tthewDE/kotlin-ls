@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
-use self::{class::KotlinClass, import::Import, package::Package};
+use self::{class::Class, import::Import, package::Package};
 
 mod argument;
 mod class;
@@ -29,7 +29,7 @@ pub enum Type {
 pub struct KotlinFile {
     pub package: Package,
     pub imports: Vec<Import>,
-    pub classes: Vec<KotlinClass>,
+    pub classes: Vec<Class>,
 }
 
 impl KotlinFile {

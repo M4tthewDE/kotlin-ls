@@ -14,7 +14,7 @@ pub enum ClassBody {
         properties: Vec<Property>,
         functions: Vec<Function>,
         objects: Vec<Object>,
-        classes: Vec<KotlinClass>,
+        classes: Vec<Class>,
         companion_objects: Vec<CompanionObject>,
     },
 }
@@ -24,7 +24,7 @@ impl ClassBody {
         let mut properties: Vec<Property> = Vec::new();
         let mut functions: Vec<Function> = Vec::new();
         let mut objects: Vec<Object> = Vec::new();
-        let mut classes: Vec<KotlinClass> = Vec::new();
+        let mut classes: Vec<Class> = Vec::new();
         let mut companion_objects = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
@@ -40,7 +40,7 @@ impl ClassBody {
                     objects.push(Object::new(&child, content)?);
                 }
                 "class_declaration" => {
-                    classes.push(KotlinClass::new(&child, content)?);
+                    classes.push(Class::new(&child, content)?);
                 }
                 "companion_object" => {
                     companion_objects.push(CompanionObject::new(&child, content)?);
@@ -200,7 +200,7 @@ pub enum ClassType {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
-pub struct KotlinClass {
+pub struct Class {
     pub class_type: ClassType,
     pub name: Type,
     pub modifiers: Vec<Modifier>,
@@ -209,8 +209,8 @@ pub struct KotlinClass {
     pub body: Option<ClassBody>,
 }
 
-impl KotlinClass {
-    fn new(node: &Node, content: &[u8]) -> Result<KotlinClass> {
+impl Class {
+    fn new(node: &Node, content: &[u8]) -> Result<Class> {
         let mut modifiers = Vec::new();
         let mut class_type = None;
         let mut name = None;
@@ -246,7 +246,7 @@ impl KotlinClass {
             }
         }
 
-        Ok(KotlinClass {
+        Ok(Class {
             class_type: class_type.context("no class type found")?,
             name: name.context("no class name found")?,
             modifiers,
@@ -257,13 +257,13 @@ impl KotlinClass {
     }
 }
 
-pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<KotlinClass>> {
+pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<Class>> {
     let mut classes = Vec::new();
     let mut cursor = tree.walk();
     loop {
         let node = cursor.node();
         if node.kind() == "class_declaration" {
-            classes.push(KotlinClass::new(&node, content)?);
+            classes.push(Class::new(&node, content)?);
         }
 
         if cursor.goto_first_child() {
