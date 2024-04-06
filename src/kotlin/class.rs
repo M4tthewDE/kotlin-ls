@@ -5,6 +5,38 @@ use tree_sitter::{Node, Tree};
 use super::{delegation::Delegation, function::Function, object::Object, property::Property, Type};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
+pub struct EnumEntry {
+    identifier: String,
+}
+
+impl EnumEntry {
+    fn new(node: &Node, content: &[u8]) -> Result<EnumEntry> {
+        let mut identifier = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
+                _ => {
+                    bail!(
+                        "[EnumEntry] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(EnumEntry {
+            identifier: identifier.context(format!(
+                "[EnumEntry] no identifier at {}",
+                node.start_position()
+            ))?,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ClassBody {
     Class {
         properties: Vec<Property>,
@@ -13,6 +45,7 @@ pub enum ClassBody {
         classes: Vec<Class>,
         companion_objects: Vec<CompanionObject>,
     },
+    Enum {},
 }
 
 impl ClassBody {
@@ -59,6 +92,27 @@ impl ClassBody {
             classes,
             companion_objects,
         })
+    }
+
+    fn new_enum_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
+        let mut entries = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "{" | "," | "}" => {}
+                "enum_entry" => entries.push(EnumEntry::new(&child, content)?),
+                _ => {
+                    bail!(
+                        "[ClassBody::Enum] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(ClassBody::Enum {})
     }
 }
 
@@ -231,9 +285,10 @@ impl Class {
                 "primary_constructor" => constructor = Some(Constructor::new(&child, content)?),
                 "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
                 "class_body" => body = Some(ClassBody::new_class_body(&child, content)?),
+                "enum_class_body" => body = Some(ClassBody::new_enum_class_body(&child, content)?),
                 _ => {
                     bail!(
-                        "KotlinClass: unhandled child {} '{}' at {}",
+                        "Class: unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
