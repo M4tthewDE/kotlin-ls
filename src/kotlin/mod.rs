@@ -9,6 +9,7 @@ use self::{class::KotlinClass, import::Import, package::Package};
 
 mod argument;
 mod class;
+mod constructor_invocation;
 mod delegation;
 mod expression;
 mod function;
