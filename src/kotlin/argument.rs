@@ -59,6 +59,7 @@ impl Argument {
                 "call_expression"
                 | "navigation_expression"
                 | "infix_expression"
+                | "as_expression"
                 | "boolean_literal"
                 | "null"
                 | "string_literal" => expression = Some(Expression::new(&child, content)?),
