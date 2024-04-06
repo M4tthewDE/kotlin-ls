@@ -53,7 +53,7 @@ impl Property {
                     variable_declaration = Some(VariableDeclaration::new(&child, content)?)
                 }
                 "." | "=" => {}
-                "call_expression" | "when_expression" => {
+                "call_expression" | "when_expression" | "string_literal" | "integer_literal" => {
                     expression = Some(Expression::new(&child, content)?)
                 }
                 _ => {

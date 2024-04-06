@@ -57,7 +57,9 @@ impl Expression {
             "equality_expression" => equality_expression(node, content),
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
-            "boolean_literal" => literal_expression(node, content),
+            "boolean_literal" | "string_literal" | "integer_literal" => {
+                literal_expression(node, content)
+            }
             "when_expression" => when_expression(node, content),
             _ => {
                 bail!(
