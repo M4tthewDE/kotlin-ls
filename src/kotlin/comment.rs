@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use tree_sitter::Node;
 
+// TODO: maybe just ignore these?
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Comment {
     Multiline(String),

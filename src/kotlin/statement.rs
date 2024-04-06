@@ -15,6 +15,7 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
+            "line_comment" => {}
             "property_declaration" => statements.push(Statement::PropertyDeclaration(
                 Property::new(&child, content)?,
             )),
