@@ -4,6 +4,7 @@ use tree_sitter::Node;
 use super::{
     argument::{self, ValueArgument},
     lambda::AnnotatedLambda,
+    statement::{get_statements, Statement},
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -20,6 +21,7 @@ pub enum Expression {
     },
     If {
         expression: Box<Expression>,
+        body: ControlStructureBody,
     },
     Equality {
         left: Box<Expression>,
@@ -175,13 +177,43 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     })
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct ControlStructureBody {
+    statements: Option<Vec<Statement>>,
+}
+
+impl ControlStructureBody {
+    pub fn new(node: &Node, content: &[u8]) -> Result<ControlStructureBody> {
+        let mut statements = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "{" | "}" => {}
+                "statements" => statements = Some(get_statements(&child, content)?),
+                _ => {
+                    bail!(
+                        "[ControlStructureBody] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(ControlStructureBody { statements })
+    }
+}
+
 fn if_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     let mut expression = None;
+    let mut body = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
             "if" | "(" | ")" => {}
             "equality_expression" => expression = Some(Expression::new(&child, content)?),
+            "control_structure_body" => body = Some(ControlStructureBody::new(&child, content)?),
             _ => {
                 bail!(
                     "[Expression::If] unhandled child {} '{}' at {}",
@@ -195,6 +227,7 @@ fn if_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 
     Ok(Expression::If {
         expression: Box::new(expression.context("[Expression::If] no expression found")?),
+        body: body.context("[Expression::If] no control structure body found")?,
     })
 }
 

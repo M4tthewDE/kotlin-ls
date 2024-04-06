@@ -48,7 +48,7 @@ impl LambdaLiteral {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "{" | "->" => {}
+                "{" | "->" | "}" => {}
                 "statements" => statements = Some(statement::get_statements(&child, content)?),
                 "lambda_parameters" => parameters = Some(get_parameters(&child, content)?),
                 _ => {
