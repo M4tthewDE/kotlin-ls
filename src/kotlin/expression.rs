@@ -1,7 +1,10 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::argument::{self, ValueArgument};
+use super::{
+    argument::{self, ValueArgument},
+    lambda::AnnotatedLambda,
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Expression {
@@ -37,15 +40,20 @@ impl Expression {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct CallSuffix {
     arguments: Vec<ValueArgument>,
+    annotated_lambda: Option<AnnotatedLambda>,
 }
 
 impl CallSuffix {
     pub fn new(node: &Node, content: &[u8]) -> Result<CallSuffix> {
         let mut arguments = None;
+        let mut annotated_lambda = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "value_arguments" => arguments = Some(argument::get_arguments(&child, content)?),
+                "annotated_lambda" => {
+                    annotated_lambda = Some(AnnotatedLambda::new(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "[CallSuffix] unhandled child {} '{}' at {}",
@@ -59,6 +67,7 @@ impl CallSuffix {
 
         Ok(CallSuffix {
             arguments: arguments.context("no arguments found")?,
+            annotated_lambda,
         })
     }
 }
