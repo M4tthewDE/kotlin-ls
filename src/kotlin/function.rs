@@ -11,8 +11,8 @@ pub enum FunctionModifier {
     Inheritance(String),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
-pub struct FunctionParameter {
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct Parameter {
     pub name: String,
     pub type_identifier: Type,
 }
@@ -64,7 +64,7 @@ impl FunctionBody {
 pub struct Function {
     pub modifiers: Vec<FunctionModifier>,
     pub name: String,
-    pub parameters: Vec<FunctionParameter>,
+    pub parameters: Vec<Parameter>,
     pub return_type: Option<String>,
     pub body: Option<FunctionBody>,
 }
@@ -72,7 +72,7 @@ pub struct Function {
 impl Function {
     pub fn new(node: &Node, content: &[u8]) -> Result<Function> {
         let mut modifiers: Vec<FunctionModifier> = Vec::new();
-        let mut parameters: Vec<FunctionParameter> = Vec::new();
+        let mut parameters: Vec<Parameter> = Vec::new();
         let mut name = None;
         let mut return_type = None;
         let mut body = None;
@@ -121,7 +121,7 @@ impl Function {
                             .utf8_text(content)?
                             .to_string();
 
-                        parameters.push(FunctionParameter {
+                        parameters.push(Parameter {
                             name,
                             type_identifier: Type::Nullable(type_identifier),
                         })

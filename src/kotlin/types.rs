@@ -1,14 +1,16 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
+use super::function::Parameter;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct FunctionTypeParameter {
-    identifier: String,
-    param_type: Type,
+pub enum FunctionTypeParameter {
+    Parameter(Parameter),
+    Type(Type),
 }
 
 impl FunctionTypeParameter {
-    pub fn new(node: &Node, content: &[u8]) -> Result<FunctionTypeParameter> {
+    pub fn new_parameter(node: &Node, content: &[u8]) -> Result<FunctionTypeParameter> {
         let mut identifier = None;
         let mut param_type = None;
         let mut cursor = node.walk();
@@ -28,16 +30,20 @@ impl FunctionTypeParameter {
             }
         }
 
-        Ok(FunctionTypeParameter {
-            identifier: identifier.context(format!(
+        Ok(FunctionTypeParameter::Parameter(Parameter {
+            name: identifier.context(format!(
                 "[FunctionTypeParameter] no identifier found at {}",
                 node.start_position()
             ))?,
-            param_type: param_type.context(format!(
+            type_identifier: param_type.context(format!(
                 "[FunctionTypeParameter] no param type found at {}",
                 node.start_position()
             ))?,
-        })
+        }))
+    }
+
+    pub fn new_type(node: &Node, content: &[u8]) -> Result<FunctionTypeParameter> {
+        Ok(FunctionTypeParameter::Type(Type::new(node, content)?))
     }
 }
 
@@ -82,7 +88,12 @@ fn get_function_type(node: &Node, content: &[u8]) -> Result<Type> {
                 for child in child.children(&mut cursor) {
                     match child.kind() {
                         "(" | ")" => {}
-                        "parameter" => params.push(FunctionTypeParameter::new(&child, content)?),
+                        "parameter" => {
+                            params.push(FunctionTypeParameter::new_parameter(&child, content)?)
+                        }
+                        "user_type" => {
+                            params.push(FunctionTypeParameter::new_type(&child, content)?)
+                        }
                         _ => {
                             bail!(
                                 "[Type::Function::Params] unhandled child {} '{}' at {}",
