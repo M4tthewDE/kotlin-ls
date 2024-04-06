@@ -303,7 +303,7 @@ pub enum ClassType {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Class {
     pub class_type: ClassType,
-    pub name: Type,
+    pub name: String,
     pub modifiers: Vec<Modifier>,
     pub constructor: Option<Constructor>,
     pub delegations: Vec<Delegation>,
@@ -330,10 +330,7 @@ impl Class {
                 "class" => class_type = Some(ClassType::Class),
                 "interface" => class_type = Some(ClassType::Interface),
                 "enum" => class_type = Some(ClassType::Enum),
-                // TODO: can this use Type::new()
-                "type_identifier" => {
-                    name = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
-                }
+                "type_identifier" => name = Some(child.utf8_text(content)?.to_string()),
                 "primary_constructor" => constructor = Some(Constructor::new(&child, content)?),
                 "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
                 "class_body" => body = Some(ClassBody::new_class_body(&child, content)?),
