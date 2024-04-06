@@ -266,12 +266,14 @@ impl ClassParameter {
 pub struct Constructor {
     modifiers: Vec<Modifier>,
     parameters: Vec<ClassParameter>,
+    comments: Vec<Comment>,
 }
 
 impl Constructor {
     fn new(node: &Node, content: &[u8]) -> Result<Constructor> {
         let mut modifiers = Vec::new();
         let mut parameters = Vec::new();
+        let mut comments = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
@@ -282,9 +284,10 @@ impl Constructor {
                     }
                 }
                 "class_parameter" => parameters.push(ClassParameter::new(&child, content)?),
+                "line_comment" => comments.push(Comment::new(&child, content)?),
                 _ => {
                     bail!(
-                        "unhandled child {} '{}' at {}",
+                        "[Constructor] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
@@ -296,6 +299,7 @@ impl Constructor {
         Ok(Constructor {
             parameters,
             modifiers,
+            comments,
         })
     }
 }

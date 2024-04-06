@@ -84,7 +84,7 @@ impl Property {
                     variable_declaration = Some(VariableDeclaration::new(&child, content)?)
                 }
                 "call_expression" | "when_expression" | "string_literal" | "integer_literal"
-                | "boolean_literal" | "check_expression" => {
+                | "boolean_literal" | "check_expression" | "null" => {
                     expression = Some(Expression::new(&child, content)?)
                 }
                 "property_delegate" => delegate = Some(PropertyDelegate::new(&child, content)?),

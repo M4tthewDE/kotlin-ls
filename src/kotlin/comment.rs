@@ -4,12 +4,14 @@ use tree_sitter::Node;
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Comment {
     Multiline(String),
+    Line(String),
 }
 
 impl Comment {
     pub fn new(node: &Node, content: &[u8]) -> Result<Comment> {
         match node.kind() {
             "multiline_comment" => Ok(Comment::Multiline(node.utf8_text(content)?.to_string())),
+            "line_comment" => Ok(Comment::Line(node.utf8_text(content)?.to_string())),
             _ => {
                 bail!(
                     "[Comment] unhandled node {} '{}' at {}",
