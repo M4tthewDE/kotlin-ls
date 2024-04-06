@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use crate::kotlin::Type;
+use crate::kotlin::{expression::Expression, getter::Getter, Type};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyModifier {
@@ -24,6 +24,8 @@ pub struct Property {
     pub data_type: Option<Type>,
     pub extension_type: Option<Type>,
     pub mutability: PropertyMutability,
+    pub expression: Option<Expression>,
+    pub getter: Option<Getter>,
 }
 
 impl Property {
@@ -31,6 +33,9 @@ impl Property {
         let mut modifiers: Vec<PropertyModifier> = Vec::new();
         let mut mutability = None;
         let mut extension_type = None;
+        let mut name = None;
+        let mut data_type = None;
+        let mut expression = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
@@ -64,12 +69,14 @@ impl Property {
                     extension_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
                 }
                 "variable_declaration" => {
-                    let name = child
-                        .child(0)
-                        .context("no name found for variable declaration")?
-                        .utf8_text(content)?
-                        .to_string();
-                    let data_type = if let Some(type_node) = child.child(2) {
+                    name = Some(
+                        child
+                            .child(0)
+                            .context("no name found for variable declaration")?
+                            .utf8_text(content)?
+                            .to_string(),
+                    );
+                    data_type = if let Some(type_node) = child.child(2) {
                         match type_node.kind() {
                             "user_type" => {
                                 Some(Type::NonNullable(type_node.utf8_text(content)?.to_string()))
@@ -79,7 +86,7 @@ impl Property {
                             }
                             _ => {
                                 bail!(
-                                    "unhandled child {} '{}' at {}",
+                                    "[Property][data_type] unhandled child {} '{}' at {}",
                                     type_node.kind(),
                                     type_node.utf8_text(content)?,
                                     type_node.start_position(),
@@ -89,19 +96,12 @@ impl Property {
                     } else {
                         None
                     };
-
-                    return Ok(Property {
-                        modifiers,
-                        name,
-                        data_type,
-                        extension_type,
-                        mutability: mutability.context("no mutability modifier found")?,
-                    });
                 }
-                "." => {}
+                "." | "=" => {}
+                "call_expression" => expression = Some(Expression::new(&child, content)?),
                 _ => {
                     bail!(
-                        "unhandled child {} '{}' at {}",
+                        "[Property] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
@@ -110,6 +110,24 @@ impl Property {
             }
         }
 
-        bail!("no property found");
+        let mut getter = None;
+
+        if let Some(next) = node.next_sibling() {
+            match next.kind() {
+                "getter" => getter = Some(Getter::new(&next, content)?),
+                "setter" => bail!("[Property] setter not implemented"),
+                _ => {}
+            }
+        }
+
+        Ok(Property {
+            modifiers,
+            name: name.context("no name found")?,
+            data_type,
+            extension_type,
+            expression,
+            mutability: mutability.context("no mutability modifier found")?,
+            getter,
+        })
     }
 }

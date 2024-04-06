@@ -3,7 +3,7 @@ use tree_sitter::Node;
 
 use crate::kotlin::expression::Expression;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ValueArgument {
     expression: Expression,
 }

@@ -18,13 +18,13 @@ pub struct FunctionParameter {
     pub type_identifier: Type,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Identifier {
     pub name: String,
     pub data_type: Option<Type>,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct FunctionBody {
     pub identifiers: Vec<Identifier>,
 }

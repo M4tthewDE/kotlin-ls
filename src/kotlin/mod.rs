@@ -10,6 +10,8 @@ use self::{class::KotlinClass, import::Import, package::Package};
 mod argument;
 mod class;
 mod expression;
+mod function;
+mod getter;
 mod import;
 mod object;
 mod package;

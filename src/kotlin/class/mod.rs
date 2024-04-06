@@ -1,15 +1,15 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
-use self::{function::Function, property::Property};
+use self::property::Property;
 
 use super::{
     argument::{self, ValueArgument},
+    function::Function,
     object::Object,
     Type,
 };
 
-mod function;
 mod property;
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -71,7 +71,7 @@ impl ClassBody {
                 "companion_object" => {
                     companion_objects.push(CompanionObject::new(&child, content)?);
                 }
-
+                "getter" => {}
                 _ => {
                     bail!(
                         "[ClassBody::Class] unhandled child {} '{}' at {}",
