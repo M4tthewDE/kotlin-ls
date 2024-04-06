@@ -2,14 +2,14 @@ use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
 use super::{
-    argument::{self, ValueArgument},
+    argument::{self, Argument},
     types::Type,
 };
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ConstructorInvocation {
     data_type: Type,
-    arguments: Vec<ValueArgument>,
+    arguments: Vec<Argument>,
 }
 
 impl ConstructorInvocation {
@@ -20,7 +20,9 @@ impl ConstructorInvocation {
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "user_type" => data_type = Some(Type::new(&child, content)?),
-                "value_arguments" => arguments = Some(argument::get_arguments(&child, content)?),
+                "value_arguments" => {
+                    arguments = Some(argument::get_value_arguments(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "unhandled child {} '{}' at {}",

@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
 use super::{
-    argument::{self, ValueArgument},
+    argument::{self, Argument},
     lambda::AnnotatedLambda,
     literal::Literal,
     statement::{get_statements, Statement},
@@ -80,7 +80,7 @@ impl Expression {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct CallSuffix {
-    arguments: Option<Vec<ValueArgument>>,
+    arguments: Option<Vec<Argument>>,
     annotated_lambda: Option<AnnotatedLambda>,
 }
 
@@ -91,7 +91,14 @@ impl CallSuffix {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "value_arguments" => arguments = Some(argument::get_arguments(&child, content)?),
+                "value_arguments" => {
+                    arguments = Some(argument::get_value_arguments(&child, content)?)
+                }
+                // NOTE: this is plurarl, but there is only one type_argument with multiple type
+                // projections!
+                "type_arguments" => {
+                    arguments = Some(vec![argument::get_type_argument(&child, content)?])
+                }
                 "annotated_lambda" => {
                     annotated_lambda = Some(AnnotatedLambda::new(&child, content)?)
                 }

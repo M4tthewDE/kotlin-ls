@@ -3,14 +3,53 @@ use tree_sitter::Node;
 
 use crate::kotlin::expression::Expression;
 
+use super::types::Type;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct ValueArgument {
-    expression: Expression,
-    identifier: Option<String>,
+pub struct TypeProjection {
+    data_type: Type,
 }
 
-impl ValueArgument {
-    fn new(node: &Node, content: &[u8]) -> Result<ValueArgument> {
+impl TypeProjection {
+    fn new(node: &Node, content: &[u8]) -> Result<TypeProjection> {
+        let mut data_type = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "user_type" => data_type = Some(Type::new(&child, content)?),
+                _ => {
+                    bail!(
+                        "[TypeProjection] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(TypeProjection {
+            data_type: data_type.context(format!(
+                "[TypeProjection] no data type found at {}",
+                node.start_position()
+            ))?,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum Argument {
+    Value {
+        expression: Expression,
+        identifier: Option<String>,
+    },
+    Type {
+        type_projections: Vec<TypeProjection>,
+    },
+}
+
+impl Argument {
+    fn new_value_argument(node: &Node, content: &[u8]) -> Result<Argument> {
         let mut expression = None;
         let mut identifier = None;
         let mut cursor = node.walk();
@@ -42,7 +81,7 @@ impl ValueArgument {
             }
         }
 
-        Ok(ValueArgument {
+        Ok(Argument::Value {
             expression: expression.context(format!(
                 "[ValueArgument] no expression found at {}",
                 node.start_position()
@@ -52,16 +91,16 @@ impl ValueArgument {
     }
 }
 
-pub fn get_arguments(node: &Node, content: &[u8]) -> Result<Vec<ValueArgument>> {
+pub fn get_value_arguments(node: &Node, content: &[u8]) -> Result<Vec<Argument>> {
     let mut arguments = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
             "(" | ")" | "," => {}
-            "value_argument" => arguments.push(ValueArgument::new(&child, content)?),
+            "value_argument" => arguments.push(Argument::new_value_argument(&child, content)?),
             _ => {
                 bail!(
-                    "[get_arguments] unhandled child {} '{}' at {}",
+                    "[get_value_arguments] unhandled child {} '{}' at {}",
                     child.kind(),
                     child.utf8_text(content)?,
                     child.start_position(),
@@ -71,4 +110,25 @@ pub fn get_arguments(node: &Node, content: &[u8]) -> Result<Vec<ValueArgument>> 
     }
 
     Ok(arguments)
+}
+
+pub fn get_type_argument(node: &Node, content: &[u8]) -> Result<Argument> {
+    let mut type_projections = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "<" | ">" => {}
+            "type_projection" => type_projections.push(TypeProjection::new(&child, content)?),
+            _ => {
+                bail!(
+                    "[get_type_argument] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        }
+    }
+
+    Ok(Argument::Type { type_projections })
 }
