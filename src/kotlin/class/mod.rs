@@ -68,6 +68,7 @@ impl ClassBody {
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ClassParameterMutability {
     Val,
+    Var,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -88,6 +89,7 @@ impl ClassParameter {
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
                 "val" => mutability = Some(ClassParameterMutability::Val),
+                "var" => mutability = Some(ClassParameterMutability::Var),
                 "modifiers" => {
                     for child in child.children(&mut cursor) {
                         modifiers.push(Modifier::new(&child, content)?);
@@ -103,7 +105,7 @@ impl ClassParameter {
                 ":" => {}
                 _ => {
                     bail!(
-                        "unhandled child {} '{}' at {}",
+                        "ClassParameter: unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
