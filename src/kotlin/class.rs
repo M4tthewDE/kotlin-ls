@@ -47,7 +47,9 @@ pub enum ClassBody {
         classes: Vec<Class>,
         companion_objects: Vec<CompanionObject>,
     },
-    Enum {},
+    Enum {
+        entries: Vec<EnumEntry>,
+    },
 }
 
 impl ClassBody {
@@ -114,7 +116,7 @@ impl ClassBody {
             }
         }
 
-        Ok(ClassBody::Enum {})
+        Ok(ClassBody::Enum { entries })
     }
 }
 
