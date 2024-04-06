@@ -3,13 +3,7 @@ use tree_sitter::Node;
 
 use crate::kotlin::{expression::Expression, getter::Getter, Type};
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum PropertyModifier {
-    Annotation(String),
-    Member(String),
-    Visibility(String),
-    Inheritance(String),
-}
+use super::Modifier;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyMutability {
@@ -19,7 +13,7 @@ pub enum PropertyMutability {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Property {
-    pub modifiers: Vec<PropertyModifier>,
+    pub modifiers: Vec<Modifier>,
     pub name: String,
     pub data_type: Option<Type>,
     pub extension_type: Option<Type>,
@@ -30,7 +24,7 @@ pub struct Property {
 
 impl Property {
     pub fn new(node: &Node, content: &[u8]) -> Result<Property> {
-        let mut modifiers: Vec<PropertyModifier> = Vec::new();
+        let mut modifiers: Vec<Modifier> = Vec::new();
         let mut mutability = None;
         let mut extension_type = None;
         let mut name = None;
@@ -41,23 +35,7 @@ impl Property {
             match child.kind() {
                 "modifiers" => {
                     for child in child.children(&mut cursor) {
-                        match child.kind() {
-                            "annotation" => modifiers.push(PropertyModifier::Annotation(
-                                child.utf8_text(content)?.to_string(),
-                            )),
-                            "member_modifier" => modifiers.push(PropertyModifier::Member(
-                                child.utf8_text(content)?.to_string(),
-                            )),
-                            "visibility_modifier" => modifiers.push(PropertyModifier::Visibility(
-                                child.utf8_text(content)?.to_string(),
-                            )),
-                            "inheritance_modifier" => {
-                                modifiers.push(PropertyModifier::Inheritance(
-                                    child.utf8_text(content)?.to_string(),
-                                ))
-                            }
-                            _ => bail!("unknown modifier {}", child.kind()),
-                        }
+                        modifiers.push(Modifier::new(&child, content)?);
                     }
                 }
                 "var" => mutability = Some(PropertyMutability::Var),

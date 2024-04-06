@@ -12,12 +12,13 @@ use super::{
 
 mod property;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Modifier {
     Class(String),
     Visibility(String),
     Annotation(String),
     Inheritance(String),
+    Member(String),
 }
 
 impl Modifier {
@@ -29,6 +30,7 @@ impl Modifier {
             "inheritance_modifier" => {
                 Ok(Modifier::Inheritance(node.utf8_text(content)?.to_string()))
             }
+            "member_modifier" => Ok(Modifier::Member(node.utf8_text(content)?.to_string())),
             _ => bail!("unknown modifier {}", node.kind()),
         }
     }
