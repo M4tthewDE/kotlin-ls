@@ -10,14 +10,37 @@ use super::{
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum EqualityOperator {
+    ReferentialEquality,
+    StructuralEquality,
+    ReferentialInequality,
+    StructuralInequality,
+}
+
+impl EqualityOperator {
+    fn new(node: &Node, content: &[u8]) -> Result<EqualityOperator> {
+        Ok(match node.utf8_text(content)? {
+            "==" => EqualityOperator::StructuralEquality,
+            "===" => EqualityOperator::ReferentialEquality,
+            "!=" => EqualityOperator::StructuralInequality,
+            "!==" => EqualityOperator::ReferentialInequality,
+            _ => bail!(
+                "[EqualityOperator] Invalid equality operator at {}",
+                node.start_position()
+            ),
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Expression {
     Call {
         expression: Box<Expression>,
         call_suffix: CallSuffix,
     },
     Navigation {
+        expression: Box<Expression>,
         navigation_suffix: NavigationSuffix,
-        expression: Box<Option<Expression>>,
     },
     If {
         expression: Box<Expression>,
@@ -25,6 +48,7 @@ pub enum Expression {
     },
     Equality {
         left: Box<Expression>,
+        operator: EqualityOperator,
         right: Box<Expression>,
     },
     Disjunction {
@@ -181,32 +205,21 @@ impl NavigationSuffix {
 }
 
 fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let mut navigation_suffix = None;
-    let mut expression = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        match child.kind() {
-            "call_expression"
-            | "navigation_expression"
-            | "simple_identifier"
-            | "integer_literal" => expression = Some(Expression::new(&child, content)?),
-            "navigation_suffix" => {
-                navigation_suffix = Some(NavigationSuffix::new(&child, content)?)
-            }
-            _ => {
-                bail!(
-                    "[Expression::Navigation] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
-            }
-        }
-    }
-
     Ok(Expression::Navigation {
-        navigation_suffix: navigation_suffix.context("no call suffix found")?,
-        expression: Box::new(expression),
+        expression: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Call] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        navigation_suffix: NavigationSuffix::new(
+            &node.child(1).context(format!(
+                "[Expression::Call] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?,
     })
 }
 
@@ -280,37 +293,28 @@ fn if_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 }
 
 fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let mut left = None;
-    let mut right = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let expression = match child.kind() {
-            "==" | "!=" => None,
-            "simple_identifier" | "null" | "navigation_expression" => {
-                Some(Expression::new(&child, content)?)
-            }
-            _ => {
-                bail!(
-                    "[Expression::Equality] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
-            }
-        };
-
-        if expression.is_some() {
-            if left.is_none() {
-                left = expression;
-            } else {
-                right = expression;
-            }
-        }
-    }
-
     Ok(Expression::Equality {
-        left: Box::new(left.context("[Expression::Equality] no left eexpression found")?),
-        right: Box::new(right.context("[Expression::Equality] no right eexpression found")?),
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Equality] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        operator: EqualityOperator::new(
+            &node.child(1).context(format!(
+                "[Expression::Equality] no operator found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?,
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Equality] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
     })
 }
 
