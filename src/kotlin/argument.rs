@@ -5,7 +5,7 @@ use crate::kotlin::expression::Expression;
 
 use super::literal::Literal;
 
-// TODO: this works better as an enum
+// TODO: this feels like an enum
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ValueArgument {
     expression: Option<Expression>,
@@ -23,7 +23,7 @@ impl ValueArgument {
             match child.kind() {
                 "=" => {}
                 "boolean_literal" => literal = Some(Literal::new(&child, content)?),
-                "call_expression" | "navigation_expression" => {
+                "call_expression" | "navigation_expression" | "infix_expression" => {
                     expression = Some(Expression::new(&child, content)?)
                 }
                 "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
