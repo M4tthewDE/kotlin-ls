@@ -53,7 +53,9 @@ impl Property {
                     variable_declaration = Some(VariableDeclaration::new(&child, content)?)
                 }
                 "." | "=" => {}
-                "call_expression" => expression = Some(Expression::new(&child, content)?),
+                "call_expression" | "when_expression" => {
+                    expression = Some(Expression::new(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "[Property] unhandled child {} '{}' at {}",

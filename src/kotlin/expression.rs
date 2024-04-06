@@ -41,6 +41,10 @@ pub enum Expression {
         right: Box<Expression>,
     },
     Literal(Literal),
+    When {
+        subject: WhenSubject,
+        entries: Vec<WhenEntry>,
+    },
 }
 
 impl Expression {
@@ -54,6 +58,7 @@ impl Expression {
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
             "boolean_literal" => literal_expression(node, content),
+            "when_expression" => when_expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -195,7 +200,7 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ControlStructureBody {
-    statements: Option<Vec<Statement>>,
+    statements: Vec<Statement>,
 }
 
 impl ControlStructureBody {
@@ -206,6 +211,14 @@ impl ControlStructureBody {
             match child.kind() {
                 "{" | "}" => {}
                 "statements" => statements = Some(get_statements(&child, content)?),
+                // FIXME: this feels like a hack, maybe directly create a statment instead?
+                // we know at this point that there is only one
+                "call_expression" => statements = Some(get_statements(node, content)?),
+                "null" => {
+                    statements = Some(vec![Statement::Expression(Expression::Literal(
+                        Literal::Null,
+                    ))])
+                }
                 _ => {
                     bail!(
                         "[ControlStructureBody] unhandled child {} '{}' at {}",
@@ -217,7 +230,12 @@ impl ControlStructureBody {
             }
         }
 
-        Ok(ControlStructureBody { statements })
+        Ok(ControlStructureBody {
+            statements: statements.context(format!(
+                "[ControlStructureBody] no statements found at {}",
+                node.start_position()
+            ))?,
+        })
     }
 }
 
@@ -384,5 +402,136 @@ fn infix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         left: Box::new(left?),
         middle,
         right: Box::new(right.context("[Expression::Equality] no right expression found")?),
+    })
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct WhenSubject {
+    expression: Box<Expression>,
+}
+
+impl WhenSubject {
+    fn new(node: &Node, content: &[u8]) -> Result<WhenSubject> {
+        let mut expression = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "(" | ")" => {}
+                "simple_identifier" => expression = Some(Expression::new(&child, content)?),
+                _ => {
+                    bail!(
+                        "[WhenSubject] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(WhenSubject {
+            expression: Box::new(expression.context(format!(
+                "[WhenSubject] no expression at {}",
+                node.start_position()
+            ))?),
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum WhenCondition {
+    Expression(Expression),
+}
+
+impl WhenCondition {
+    fn new(node: &Node, content: &[u8]) -> Result<WhenCondition> {
+        return if let Some(child) = node.child(0) {
+            match child.kind() {
+                "simple_identifier" => {
+                    Ok(WhenCondition::Expression(Expression::new(&child, content)?))
+                }
+                _ => {
+                    bail!(
+                        "[WhenCondition] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        } else {
+            bail!(
+                "[WhenCondition] unhandled node {} '{}' at {}",
+                node.kind(),
+                node.utf8_text(content)?,
+                node.start_position(),
+            )
+        };
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct WhenEntry {
+    // condition is empty for "else" case
+    condition: Option<WhenCondition>,
+    body: ControlStructureBody,
+}
+
+impl WhenEntry {
+    fn new(node: &Node, content: &[u8]) -> Result<WhenEntry> {
+        let mut condition = None;
+        let mut body = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "->" | "else" => {}
+                "when_condition" => condition = Some(WhenCondition::new(&child, content)?),
+                "control_structure_body" => {
+                    body = Some(ControlStructureBody::new(&child, content)?)
+                }
+                _ => {
+                    bail!(
+                        "[WhenEntry] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(WhenEntry {
+            condition,
+            body: body.context(format!("[WhenEntry] no body at {}", node.start_position()))?,
+        })
+    }
+}
+
+fn when_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let mut subject = None;
+    let mut entries = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "when" | "{" | "}" => {}
+            "when_subject" => subject = Some(WhenSubject::new(&child, content)?),
+            "when_entry" => entries.push(WhenEntry::new(&child, content)?),
+            _ => {
+                bail!(
+                    "[Expression::When] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        }
+    }
+
+    Ok(Expression::When {
+        subject: subject.context(format!(
+            "[Expression::When] no expression at {}",
+            node.start_position()
+        ))?,
+        entries,
     })
 }

@@ -4,6 +4,7 @@ use tree_sitter::Node;
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Literal {
     Boolean(String),
+    Null,
 }
 
 impl Literal {
