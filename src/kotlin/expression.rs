@@ -12,9 +12,8 @@ use super::{
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Expression {
     Call {
-        identifier: Option<String>,
+        expression: Box<Expression>,
         call_suffix: CallSuffix,
-        expression: Box<Option<Expression>>,
     },
     Navigation {
         navigation_suffix: NavigationSuffix,
@@ -133,32 +132,21 @@ impl CallSuffix {
 }
 
 fn call_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let mut identifier = None;
-    let mut call_suffix = None;
-    let mut expression = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        match child.kind() {
-            "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
-            "call_suffix" => call_suffix = Some(CallSuffix::new(&child, content)?),
-            "navigation_expression" | "call_expression" => {
-                expression = Some(Expression::new(&child, content)?)
-            }
-            _ => {
-                bail!(
-                    "[Expression::Call] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
-            }
-        }
-    }
-
     Ok(Expression::Call {
-        identifier,
-        call_suffix: call_suffix.context("no call suffix found")?,
-        expression: Box::new(expression),
+        expression: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Call] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        call_suffix: CallSuffix::new(
+            &node.child(1).context(format!(
+                "[Expression::Call] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?,
     })
 }
 
