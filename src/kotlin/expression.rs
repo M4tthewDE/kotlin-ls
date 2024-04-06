@@ -423,24 +423,22 @@ fn check_expression(node: &Node, content: &[u8]) -> Result<Expression> {
             "simple_identifier" => {
                 if left.is_none() {
                     left = Some(Expression::new(&child, content)?)
-                } else {
-                    if let Some(ref c) = check_type {
-                        if c == "in" {
-                            right = Some(Expression::new(&child, content)?)
-                        } else {
-                            bail!(
-                                "[Expression::Check] invalid check type {} for {} at {}",
-                                c,
-                                child.kind(),
-                                child.start_position(),
-                            )
-                        }
+                } else if let Some(ref c) = check_type {
+                    if c == "in" {
+                        right = Some(Expression::new(&child, content)?)
                     } else {
                         bail!(
-                            "[Expression::Check] check type has to be known at {}",
-                            child.start_position()
+                            "[Expression::Check] invalid check type {} for {} at {}",
+                            c,
+                            child.kind(),
+                            child.start_position(),
                         )
                     }
+                } else {
+                    bail!(
+                        "[Expression::Check] check type has to be known at {}",
+                        child.start_position()
+                    )
                 }
             }
             _ => {
