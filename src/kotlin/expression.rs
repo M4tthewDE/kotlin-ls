@@ -18,6 +18,16 @@ pub enum Expression {
         navigation_suffix: NavigationSuffix,
         expression: Box<Option<Expression>>,
     },
+    If {
+        expression: Box<Expression>,
+    },
+    Equality {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    Identifier {
+        identifier: String,
+    },
 }
 
 impl Expression {
@@ -25,6 +35,9 @@ impl Expression {
         match node.kind() {
             "call_expression" => call_expression(node, content),
             "navigation_expression" => navigation_expression(node, content),
+            "if_expression" => if_expression(node, content),
+            "equality_expression" => equality_expression(node, content),
+            "simple_identifier" => identifier_expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -159,5 +172,76 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         identifier,
         navigation_suffix: navigation_suffix.context("no call suffix found")?,
         expression: Box::new(expression),
+    })
+}
+
+fn if_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let mut expression = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "if" | "(" | ")" => {}
+            "equality_expression" => expression = Some(Expression::new(&child, content)?),
+            _ => {
+                bail!(
+                    "[Expression::If] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        }
+    }
+
+    Ok(Expression::If {
+        expression: Box::new(expression.context("[Expression::If] no expression found")?),
+    })
+}
+
+fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let mut left = None;
+    let mut right = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let expression = match child.kind() {
+            "==" => None,
+            "simple_identifier" => Some(Expression::new(&child, content)?),
+            _ => {
+                bail!(
+                    "[Expression::Equality] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        };
+
+        if expression.is_some() {
+            if left.is_none() {
+                left = expression;
+            } else {
+                right = expression;
+            }
+        }
+    }
+
+    Ok(Expression::Equality {
+        left: Box::new(left.context("[Expression::Equality] no left eexpression found")?),
+        right: Box::new(right.context("[Expression::Equality] no right eexpression found")?),
+    })
+}
+
+fn identifier_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    if node.kind() != "simple_identifier" {
+        bail!(
+            "[Expression::Identifier]  invalid node {} '{}' at {}",
+            node.kind(),
+            node.utf8_text(content)?,
+            node.start_position(),
+        );
+    }
+
+    Ok(Expression::Identifier {
+        identifier: node.utf8_text(content)?.to_string(),
     })
 }

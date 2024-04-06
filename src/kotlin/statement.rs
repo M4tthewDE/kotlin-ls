@@ -18,7 +18,7 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             "property_declaration" => statements.push(Statement::PropertyDeclaration(
                 Property::new(&child, content)?,
             )),
-            "call_expression" => {
+            "call_expression" | "if_expression" => {
                 statements.push(Statement::Expression(Expression::new(&child, content)?))
             }
             _ => {
