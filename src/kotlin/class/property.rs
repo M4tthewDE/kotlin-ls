@@ -1,7 +1,11 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use crate::kotlin::{expression::Expression, getter::Getter, Type};
+use crate::kotlin::{
+    expression::Expression,
+    getter::{Getter, Setter},
+    Type,
+};
 
 use super::Modifier;
 
@@ -20,6 +24,7 @@ pub struct Property {
     pub mutability: PropertyMutability,
     pub expression: Option<Expression>,
     pub getter: Option<Getter>,
+    pub setter: Option<Setter>,
 }
 
 impl Property {
@@ -89,11 +94,12 @@ impl Property {
         }
 
         let mut getter = None;
+        let mut setter = None;
 
         if let Some(next) = node.next_sibling() {
             match next.kind() {
                 "getter" => getter = Some(Getter::new(&next, content)?),
-                "setter" => bail!("[Property] setter not implemented"),
+                "setter" => setter = Some(Setter::new(&next, content)?),
                 _ => {}
             }
         }
@@ -106,6 +112,7 @@ impl Property {
             expression,
             mutability: mutability.context("no mutability modifier found")?,
             getter,
+            setter,
         })
     }
 }

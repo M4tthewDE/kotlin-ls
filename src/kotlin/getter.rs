@@ -15,7 +15,7 @@ impl Getter {
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "get" | "(" | ")" => {}
-                "function_body" => function_body = Some(FunctionBody::new(&node, content)?),
+                "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
                 _ => {
                     bail!(
                         "[Getter] unhandled child {} '{}' at {}",
@@ -40,12 +40,12 @@ pub struct Setter {
 
 impl Setter {
     pub fn new(node: &Node, content: &[u8]) -> Result<Setter> {
-        let function_body = None;
+        let mut function_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                //"get" | "(" | ")" => {}
-                //"function_body" => function_body = Some(FunctionBody::new(&node, content)?),
+                "get" | "(" | ")" => {}
+                "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
                 _ => {
                     bail!(
                         "[Getter] unhandled child {} '{}' at {}",
