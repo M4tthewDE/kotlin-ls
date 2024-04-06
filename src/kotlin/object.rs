@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::{class::Delegation, modifier::Modifier};
+use super::{delegation::Delegation, modifier::Modifier};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Object {
