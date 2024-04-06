@@ -3,7 +3,12 @@ use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
 use super::{
-    delegation::Delegation, function::Function, object::Object, property::Property, types::Type,
+    delegation::Delegation,
+    function::Function,
+    object::Object,
+    property::Property,
+    statement::{self, Statement},
+    types::Type,
 };
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -39,6 +44,39 @@ impl EnumEntry {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
+pub struct AnonymousInitializer {
+    statements: Vec<Statement>,
+}
+
+impl AnonymousInitializer {
+    fn new(node: &Node, content: &[u8]) -> Result<AnonymousInitializer> {
+        let mut statements = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "init" | "{" | "}" => {}
+                "statements" => statements = Some(statement::get_statements(&child, content)?),
+                _ => {
+                    bail!(
+                        "[AnonymousInitializer] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(AnonymousInitializer {
+            statements: statements.context(format!(
+                "[AnonymousInitializer] no statements at {}",
+                node.start_position()
+            ))?,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ClassBody {
     Class {
         properties: Vec<Property>,
@@ -46,6 +84,7 @@ pub enum ClassBody {
         objects: Vec<Object>,
         classes: Vec<Class>,
         companion_objects: Vec<CompanionObject>,
+        anonymous_initializers: Vec<AnonymousInitializer>,
     },
     Enum {
         entries: Vec<EnumEntry>,
@@ -59,6 +98,7 @@ impl ClassBody {
         let mut objects: Vec<Object> = Vec::new();
         let mut classes: Vec<Class> = Vec::new();
         let mut companion_objects = Vec::new();
+        let mut anonymous_initializers = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
@@ -78,6 +118,9 @@ impl ClassBody {
                 "companion_object" => {
                     companion_objects.push(CompanionObject::new(&child, content)?);
                 }
+                "anonymous_initializer" => {
+                    anonymous_initializers.push(AnonymousInitializer::new(&child, content)?);
+                }
                 _ => {
                     bail!(
                         "[ClassBody::Class] unhandled child {} '{}' at {}",
@@ -95,6 +138,7 @@ impl ClassBody {
             objects,
             classes,
             companion_objects,
+            anonymous_initializers,
         })
     }
 
