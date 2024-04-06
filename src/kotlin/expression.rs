@@ -6,12 +6,12 @@ use super::argument::{self, ValueArgument};
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Expression {
     Call {
-        identifier: String,
+        identifier: Option<String>,
         call_suffix: CallSuffix,
         expression: Box<Option<Expression>>,
     },
     Navigation {
-        identifier: String,
+        identifier: Option<String>,
         navigation_suffix: NavigationSuffix,
         expression: Box<Option<Expression>>,
     },
@@ -70,7 +70,7 @@ fn call_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "simple_identifier" => identifier = Some(child.utf8_text(content)?),
+            "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
             "call_suffix" => call_suffix = Some(CallSuffix::new(&child, content)?),
             "navigation_expression" => expression = Some(Expression::new(&child, content)?),
             _ => {
@@ -85,7 +85,7 @@ fn call_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     }
 
     Ok(Expression::Call {
-        identifier: identifier.context("no identifier found")?.to_string(),
+        identifier,
         call_suffix: call_suffix.context("no call suffix found")?,
         expression: Box::new(expression),
     })
@@ -128,7 +128,7 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "simple_identifier" => identifier = Some(child.utf8_text(content)?),
+            "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
             "call_expression" => expression = Some(Expression::new(&child, content)?),
             "navigation_suffix" => {
                 navigation_suffix = Some(NavigationSuffix::new(&child, content)?)
@@ -145,7 +145,7 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     }
 
     Ok(Expression::Navigation {
-        identifier: identifier.context("no identifier found")?.to_string(),
+        identifier,
         navigation_suffix: navigation_suffix.context("no call suffix found")?,
         expression: Box::new(expression),
     })
