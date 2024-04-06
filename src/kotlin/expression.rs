@@ -60,7 +60,7 @@ pub enum Expression {
     },
     Infix {
         left: Box<Expression>,
-        middle: String,
+        identifier: String,
         right: Box<Expression>,
     },
     As {
@@ -97,7 +97,7 @@ impl Expression {
             "elvis_expression" => elvis_expression(node, content),
             "check_expression" => check_expression(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "null" => {
-                literal_expression(node, content)
+                Ok(Expression::Literal(Literal::new(node, content)?))
             }
             "when_expression" => when_expression(node, content),
             "user_type" => Ok(Expression::Type(Type::new(node, content)?)),
@@ -352,61 +352,30 @@ fn identifier_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     })
 }
 
-fn literal_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    Ok(Expression::Literal(Literal::new(node, content)?))
-}
-
 fn infix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let left_node = node
-        .child(0)
-        .context(format!("too little children at {}", node.start_position()))?;
-    let left: Result<Expression> = match left_node.kind() {
-        "simple_identifier" => Ok(Expression::new(&left_node, content)?),
-        _ => {
-            bail!(
-                "[Expression::Infix] unhandled child {} '{}' at {}",
-                node.kind(),
-                node.utf8_text(content)?,
-                node.start_position(),
-            )
-        }
-    };
-
-    let middle_node = node
-        .child(1)
-        .context(format!("too little children at {}", node.start_position()))?;
-
-    if middle_node.kind() != "simple_identifier" {
-        bail!(
-            "[Expression::Infix] incompatible middle node {} '{}' at {}",
-            node.kind(),
-            node.utf8_text(content)?,
-            node.start_position(),
-        );
-    }
-
-    let middle = middle_node.utf8_text(content)?.to_string();
-
-    let right_node = node.child(2).context(format!(
-        "[Expression::Infix] too little children at {}",
-        node.start_position()
-    ))?;
-    let right: Result<Expression> = match right_node.kind() {
-        "simple_identifier" => Ok(Expression::new(&right_node, content)?),
-        _ => {
-            bail!(
-                "[Expression::Infix] unhandled child {} '{}' at {}",
-                node.kind(),
-                node.utf8_text(content)?,
-                node.start_position(),
-            )
-        }
-    };
-
     Ok(Expression::Infix {
-        left: Box::new(left?),
-        middle,
-        right: Box::new(right.context("[Expression::Infix] no right expression found")?),
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Infix] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        identifier: node
+            .child(1)
+            .context(format!(
+                "[Expression::Infix] no middle found at {}",
+                node.start_position()
+            ))?
+            .utf8_text(content)?
+            .to_string(),
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Infix] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
     })
 }
 
