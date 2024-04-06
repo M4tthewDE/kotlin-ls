@@ -40,12 +40,21 @@ pub enum Expression {
         middle: String,
         right: Box<Expression>,
     },
+    As {
+        left: Box<Expression>,
+        middle: String,
+        right: Box<Expression>,
+    },
     Literal(Literal),
     When {
         subject: WhenSubject,
         entries: Vec<WhenEntry>,
     },
     CheckIn {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    Elvis {
         left: Box<Expression>,
         right: Box<Expression>,
     },
@@ -63,6 +72,7 @@ impl Expression {
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
             "as_expression" => as_expression(node, content),
+            "elvis_expression" => elvis_expression(node, content),
             "check_expression" => check_expression(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "null" => {
                 literal_expression(node, content)
@@ -470,10 +480,61 @@ fn as_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         }
     };
 
-    Ok(Expression::Infix {
+    Ok(Expression::As {
         left: Box::new(left?),
         middle,
         right: Box::new(right.context("[Expression::As] no right expression found")?),
+    })
+}
+
+fn elvis_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let left_node = node
+        .child(0)
+        .context(format!("too little children at {}", node.start_position()))?;
+    let left: Result<Expression> = match left_node.kind() {
+        "simple_identifier" => Ok(Expression::new(&left_node, content)?),
+        _ => {
+            bail!(
+                "[Expression::Elvis] unhandled child {} '{}' at {}",
+                left_node.kind(),
+                left_node.utf8_text(content)?,
+                left_node.start_position(),
+            )
+        }
+    };
+
+    let middle_node = node
+        .child(1)
+        .context(format!("too little children at {}", node.start_position()))?;
+
+    if middle_node.kind() != "?:" {
+        bail!(
+            "[Expression::Elvis] incompatible middle node {} '{}' at {}",
+            middle_node.kind(),
+            middle_node.utf8_text(content)?,
+            middle_node.start_position(),
+        );
+    }
+
+    let right_node = node.child(2).context(format!(
+        "[Expresison::Elvis] too little children at {}",
+        node.start_position()
+    ))?;
+    let right: Result<Expression> = match right_node.kind() {
+        "jump_expression" => Ok(Expression::new(&right_node, content)?),
+        _ => {
+            bail!(
+                "[Expression::Elvis] unhandled child {} '{}' at {}",
+                right_node.kind(),
+                right_node.utf8_text(content)?,
+                right_node.start_position(),
+            )
+        }
+    };
+
+    Ok(Expression::Elvis {
+        left: Box::new(left?),
+        right: Box::new(right.context("[Expression::Elvis] no right expression found")?),
     })
 }
 
