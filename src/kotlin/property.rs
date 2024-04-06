@@ -49,7 +49,9 @@ impl Property {
                 }
                 "." | "=" => {}
                 "call_expression" | "when_expression" | "string_literal" | "integer_literal"
-                | "check_expression" => expression = Some(Expression::new(&child, content)?),
+                | "boolean_literal" | "check_expression" => {
+                    expression = Some(Expression::new(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "[Property] unhandled child {} '{}' at {}",
