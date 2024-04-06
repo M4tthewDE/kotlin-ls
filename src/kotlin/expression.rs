@@ -273,7 +273,8 @@ fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let expression = match child.kind() {
-            "==" => None,
+            "==" | "!=" => None,
+            "null" => Some(Expression::Literal(Literal::Null)),
             "simple_identifier" => Some(Expression::new(&child, content)?),
             _ => {
                 bail!(
