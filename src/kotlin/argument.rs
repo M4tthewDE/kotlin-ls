@@ -1,25 +1,29 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use tree_sitter::Node;
 
 use crate::kotlin::expression::Expression;
 
+// TODO: this might work better as an enum
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ValueArgument {
-    expression: Expression,
+    expression: Option<Expression>,
+    identifier: Option<String>,
 }
 
 impl ValueArgument {
     fn new(node: &Node, content: &[u8]) -> Result<ValueArgument> {
         let mut expression = None;
+        let mut identifier = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "call_expression" | "navigation_expression" => {
                     expression = Some(Expression::new(&child, content)?)
                 }
+                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
                 _ => {
                     bail!(
-                        "unhandled child {} '{}' at {}",
+                        "[ValueArgument] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
@@ -29,7 +33,8 @@ impl ValueArgument {
         }
 
         Ok(ValueArgument {
-            expression: expression.context("no expression found")?,
+            expression,
+            identifier,
         })
     }
 }
@@ -39,11 +44,11 @@ pub fn get_arguments(node: &Node, content: &[u8]) -> Result<Vec<ValueArgument>> 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "(" | ")" => {}
+            "(" | ")" | "," => {}
             "value_argument" => arguments.push(ValueArgument::new(&child, content)?),
             _ => {
                 bail!(
-                    "unhandled child {} '{}' at {}",
+                    "[get_arguments] unhandled child {} '{}' at {}",
                     child.kind(),
                     child.utf8_text(content)?,
                     child.start_position(),

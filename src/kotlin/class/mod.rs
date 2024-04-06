@@ -55,7 +55,7 @@ impl ClassBody {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "{" | "}" | "line_comment" => {}
+                "{" | "}" | "line_comment" | "getter" | "setter" => {}
                 "property_declaration" => {
                     properties.push(Property::new(&child, content)?);
                 }
@@ -71,7 +71,6 @@ impl ClassBody {
                 "companion_object" => {
                     companion_objects.push(CompanionObject::new(&child, content)?);
                 }
-                "getter" => {}
                 _ => {
                     bail!(
                         "[ClassBody::Class] unhandled child {} '{}' at {}",
