@@ -19,9 +19,7 @@ impl ConstructorInvocation {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "user_type" => {
-                    data_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
-                }
+                "user_type" => data_type = Some(Type::new(&child, content)?),
                 "value_arguments" => arguments = Some(argument::get_arguments(&child, content)?),
                 _ => {
                     bail!(

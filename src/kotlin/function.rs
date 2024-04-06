@@ -114,6 +114,7 @@ impl Function {
                             .utf8_text(content)?
                             .to_string();
 
+                        // TODO: use Type::new()
                         let type_identifier = child
                             .child(2)
                             .context("no type identifier found")?

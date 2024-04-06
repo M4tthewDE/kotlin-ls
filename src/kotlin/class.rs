@@ -2,7 +2,9 @@ use crate::kotlin::modifier::Modifier;
 use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
-use super::{delegation::Delegation, function::Function, object::Object, property::Property, types::Type};
+use super::{
+    delegation::Delegation, function::Function, object::Object, property::Property, types::Type,
+};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct EnumEntry {
@@ -177,11 +179,8 @@ impl ClassParameter {
                     }
                 }
                 "simple_identifier" => name = Some(child.utf8_text(content)?.to_string()),
-                "user_type" => {
-                    data_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
-                }
-                "nullable_type" => {
-                    data_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
+                "user_type" | "nullable_type" | "function_type" => {
+                    data_type = Some(Type::new(&child, content)?)
                 }
                 ":" => {}
                 _ => {
@@ -279,6 +278,7 @@ impl Class {
                 "class" => class_type = Some(ClassType::Class),
                 "interface" => class_type = Some(ClassType::Interface),
                 "enum" => class_type = Some(ClassType::Enum),
+                // TODO: can this use Type::new()
                 "type_identifier" => {
                     name = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
                 }

@@ -43,12 +43,7 @@ impl Property {
                 }
                 "var" => mutability = Some(PropertyMutability::Var),
                 "val" => mutability = Some(PropertyMutability::Val),
-                "user_type" => {
-                    extension_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
-                }
-                "nullable_type" => {
-                    extension_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
-                }
+                "user_type" | "nullable_type" => extension_type = Some(Type::new(&child, content)?),
                 "variable_declaration" => {
                     variable_declaration = Some(VariableDeclaration::new(&child, content)?)
                 }

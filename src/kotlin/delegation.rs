@@ -13,9 +13,7 @@ impl Delegation {
     pub fn new(node: &Node, content: &[u8]) -> Result<Delegation> {
         let child = node.child(0).context("no delegation specifier child")?;
         match child.kind() {
-            "user_type" => Ok(Delegation::Type(Type::NonNullable(
-                child.utf8_text(content)?.to_string(),
-            ))),
+            "user_type" => Ok(Delegation::Type(Type::new(&child, content)?)),
             "constructor_invocation" => Ok(Delegation::ConstructorInvocation(
                 ConstructorInvocation::new(&child, content)?,
             )),

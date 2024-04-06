@@ -18,12 +18,7 @@ impl VariableDeclaration {
             match child.kind() {
                 ":" => {}
                 "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
-                "user_type" => {
-                    data_type = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
-                }
-                "nullable_type" => {
-                    data_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
-                }
+                "user_type" | "nullable_type" => data_type = Some(Type::new(&child, content)?),
                 _ => {
                     bail!(
                         "[VariableDeclaration] unhandled child {} '{}' at {}",
