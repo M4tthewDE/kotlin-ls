@@ -16,6 +16,7 @@ mod function;
 mod getter;
 mod import;
 mod lambda;
+mod literal;
 mod modifier;
 mod object;
 mod package;

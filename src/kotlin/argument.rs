@@ -3,20 +3,26 @@ use tree_sitter::Node;
 
 use crate::kotlin::expression::Expression;
 
-// TODO: this might work better as an enum
+use super::literal::Literal;
+
+// TODO: this works better as an enum
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ValueArgument {
     expression: Option<Expression>,
     identifier: Option<String>,
+    literal: Option<Literal>,
 }
 
 impl ValueArgument {
     fn new(node: &Node, content: &[u8]) -> Result<ValueArgument> {
         let mut expression = None;
         let mut identifier = None;
+        let mut literal = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
+                "=" => {}
+                "boolean_literal" => literal = Some(Literal::new(&child, content)?),
                 "call_expression" | "navigation_expression" => {
                     expression = Some(Expression::new(&child, content)?)
                 }
@@ -35,6 +41,7 @@ impl ValueArgument {
         Ok(ValueArgument {
             expression,
             identifier,
+            literal,
         })
     }
 }
