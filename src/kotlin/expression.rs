@@ -107,7 +107,9 @@ fn call_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         match child.kind() {
             "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
             "call_suffix" => call_suffix = Some(CallSuffix::new(&child, content)?),
-            "navigation_expression" => expression = Some(Expression::new(&child, content)?),
+            "navigation_expression" | "call_expression" => {
+                expression = Some(Expression::new(&child, content)?)
+            }
             _ => {
                 bail!(
                     "[Expression::Call] unhandled child {} '{}' at {}",
