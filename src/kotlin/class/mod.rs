@@ -40,6 +40,7 @@ pub enum ClassBody {
         properties: Vec<Property>,
         functions: Vec<Function>,
         objects: Vec<Object>,
+        classes: Vec<KotlinClass>,
     },
 }
 
@@ -48,6 +49,7 @@ impl ClassBody {
         let mut properties: Vec<Property> = Vec::new();
         let mut functions: Vec<Function> = Vec::new();
         let mut objects: Vec<Object> = Vec::new();
+        let mut classes: Vec<KotlinClass> = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
@@ -60,6 +62,9 @@ impl ClassBody {
                 }
                 "object_declaration" => {
                     objects.push(Object::new(&child, content)?);
+                }
+                "class_declaration" => {
+                    classes.push(KotlinClass::new(&child, content)?);
                 }
                 _ => {
                     bail!(
@@ -76,6 +81,7 @@ impl ClassBody {
             properties,
             functions,
             objects,
+            classes,
         })
     }
 }
