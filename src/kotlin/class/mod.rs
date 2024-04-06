@@ -34,31 +34,39 @@ impl Modifier {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
-pub struct ClassBody {
-    pub properties: Vec<Property>,
-    pub functions: Vec<Function>,
+pub enum ClassBody {
+    Class {
+        properties: Vec<Property>,
+        functions: Vec<Function>,
+    },
 }
 
 impl ClassBody {
-    fn new(node: &Node, content: &[u8]) -> Result<ClassBody> {
+    fn new_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
         let mut properties: Vec<Property> = Vec::new();
         let mut functions: Vec<Function> = Vec::new();
         let mut cursor = node.walk();
-        for child in node.children(&mut cursor.clone()) {
-            if child.kind() == "class_body" {
-                for child in child.children(&mut cursor) {
-                    if child.kind() == "property_declaration" {
-                        properties.push(Property::new(&child, content)?);
-                    }
-
-                    if child.kind() == "function_declaration" {
-                        functions.push(Function::new(&child, content)?);
-                    }
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "{" | "}" | "line_comment" => {}
+                "property_declaration" => {
+                    properties.push(Property::new(&child, content)?);
+                }
+                "function_declaration" => {
+                    functions.push(Function::new(&child, content)?);
+                }
+                _ => {
+                    bail!(
+                        "ClassBody: unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
                 }
             }
         }
 
-        Ok(ClassBody {
+        Ok(ClassBody::Class {
             properties,
             functions,
         })
@@ -228,6 +236,7 @@ impl Delegation {
 pub enum ClassType {
     Class,
     Interface,
+    Enum,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -259,15 +268,16 @@ impl KotlinClass {
                 }
                 "class" => class_type = Some(ClassType::Class),
                 "interface" => class_type = Some(ClassType::Interface),
+                "enum" => class_type = Some(ClassType::Enum),
                 "type_identifier" => {
                     name = Some(Type::NonNullable(child.utf8_text(content)?.to_string()))
                 }
                 "primary_constructor" => constructor = Some(Constructor::new(&child, content)?),
                 "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
-                "class_body" => body = Some(ClassBody::new(&child, content)?),
+                "class_body" => body = Some(ClassBody::new_class_body(&child, content)?),
                 _ => {
                     bail!(
-                        "unhandled child {} '{}' at {}",
+                        "KotlinClass: unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
