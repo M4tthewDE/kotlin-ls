@@ -20,7 +20,8 @@ impl ValueArgument {
                 "call_expression"
                 | "navigation_expression"
                 | "infix_expression"
-                | "boolean_literal" => expression = Some(Expression::new(&child, content)?),
+                | "boolean_literal"
+                | "null" => expression = Some(Expression::new(&child, content)?),
                 "simple_identifier" => {
                     // simple_identifier has to be followed by "=", else it's an expression
                     if child.next_sibling().is_some() {

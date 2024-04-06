@@ -57,7 +57,7 @@ impl Expression {
             "equality_expression" => equality_expression(node, content),
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
-            "boolean_literal" | "string_literal" | "integer_literal" => {
+            "boolean_literal" | "string_literal" | "integer_literal" | "null" => {
                 literal_expression(node, content)
             }
             "when_expression" => when_expression(node, content),
@@ -217,9 +217,9 @@ impl ControlStructureBody {
                 // we know at this point that there is only one
                 "call_expression" => statements = Some(get_statements(node, content)?),
                 "null" => {
-                    statements = Some(vec![Statement::Expression(Expression::Literal(
-                        Literal::Null,
-                    ))])
+                    statements = Some(vec![Statement::Expression(Expression::new(
+                        &child, content,
+                    )?)])
                 }
                 _ => {
                     bail!(
@@ -276,8 +276,7 @@ fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     for child in node.children(&mut cursor) {
         let expression = match child.kind() {
             "==" | "!=" => None,
-            "null" => Some(Expression::Literal(Literal::Null)),
-            "simple_identifier" => Some(Expression::new(&child, content)?),
+            "simple_identifier" | "null" => Some(Expression::new(&child, content)?),
             _ => {
                 bail!(
                     "[Expression::Equality] unhandled child {} '{}' at {}",

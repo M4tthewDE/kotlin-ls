@@ -15,6 +15,7 @@ impl Literal {
             "boolean_literal" => Ok(Literal::Boolean(node.utf8_text(content)?.to_string())),
             "string_literal" => Ok(Literal::String(node.utf8_text(content)?.to_string())),
             "integer_literal" => Ok(Literal::Integer(node.utf8_text(content)?.to_string())),
+            "null" => Ok(Literal::Null),
             _ => {
                 bail!(
                     "[Literal] unhandled node {} '{}' at {}",
