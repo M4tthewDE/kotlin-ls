@@ -16,7 +16,6 @@ pub enum Expression {
         expression: Box<Option<Expression>>,
     },
     Navigation {
-        identifier: Option<String>,
         navigation_suffix: NavigationSuffix,
         expression: Box<Option<Expression>>,
     },
@@ -181,16 +180,15 @@ impl NavigationSuffix {
 }
 
 fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let mut identifier = None;
     let mut navigation_suffix = None;
     let mut expression = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
-            "call_expression" | "navigation_expression" => {
-                expression = Some(Expression::new(&child, content)?)
-            }
+            "call_expression"
+            | "navigation_expression"
+            | "simple_identifier"
+            | "integer_literal" => expression = Some(Expression::new(&child, content)?),
             "navigation_suffix" => {
                 navigation_suffix = Some(NavigationSuffix::new(&child, content)?)
             }
@@ -206,7 +204,6 @@ fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     }
 
     Ok(Expression::Navigation {
-        identifier,
         navigation_suffix: navigation_suffix.context("no call suffix found")?,
         expression: Box::new(expression),
     })
