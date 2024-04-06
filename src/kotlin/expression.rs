@@ -319,35 +319,21 @@ fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 }
 
 fn disjunction_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let mut left = None;
-    let mut right = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let expression = match child.kind() {
-            "||" => None,
-            "simple_identifier" | "equality_expression" => Some(Expression::new(&child, content)?),
-            _ => {
-                bail!(
-                    "[Expression::Disjunction] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
-            }
-        };
-
-        if expression.is_some() {
-            if left.is_none() {
-                left = expression;
-            } else {
-                right = expression;
-            }
-        }
-    }
-
     Ok(Expression::Disjunction {
-        left: Box::new(left.context("[Expression::Disjunction] no left eexpression found")?),
-        right: Box::new(right.context("[Expression::Disjunction] no right eexpression found")?),
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Disjunction] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Disjunction] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
     })
 }
 
