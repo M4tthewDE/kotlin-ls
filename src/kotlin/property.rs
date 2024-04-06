@@ -7,7 +7,7 @@ use crate::kotlin::{
     Type,
 };
 
-use super::modifier::Modifier;
+use super::{modifier::Modifier, variable_declaration::VariableDeclaration};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyMutability {
@@ -18,8 +18,7 @@ pub enum PropertyMutability {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Property {
     pub modifiers: Vec<Modifier>,
-    pub name: String,
-    pub data_type: Option<Type>,
+    pub variable_declaration: VariableDeclaration,
     pub extension_type: Option<Type>,
     pub mutability: PropertyMutability,
     pub expression: Option<Expression>,
@@ -30,10 +29,9 @@ pub struct Property {
 impl Property {
     pub fn new(node: &Node, content: &[u8]) -> Result<Property> {
         let mut modifiers: Vec<Modifier> = Vec::new();
+        let mut variable_declaration = None;
         let mut mutability = None;
         let mut extension_type = None;
-        let mut name = None;
-        let mut data_type = None;
         let mut expression = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
@@ -52,33 +50,7 @@ impl Property {
                     extension_type = Some(Type::Nullable(child.utf8_text(content)?.to_string()))
                 }
                 "variable_declaration" => {
-                    name = Some(
-                        child
-                            .child(0)
-                            .context("no name found for variable declaration")?
-                            .utf8_text(content)?
-                            .to_string(),
-                    );
-                    data_type = if let Some(type_node) = child.child(2) {
-                        match type_node.kind() {
-                            "user_type" => {
-                                Some(Type::NonNullable(type_node.utf8_text(content)?.to_string()))
-                            }
-                            "nullable_type" => {
-                                Some(Type::Nullable(type_node.utf8_text(content)?.to_string()))
-                            }
-                            _ => {
-                                bail!(
-                                    "[Property][data_type] unhandled child {} '{}' at {}",
-                                    type_node.kind(),
-                                    type_node.utf8_text(content)?,
-                                    type_node.start_position(),
-                                )
-                            }
-                        }
-                    } else {
-                        None
-                    };
+                    variable_declaration = Some(VariableDeclaration::new(&child, content)?)
                 }
                 "." | "=" => {}
                 "call_expression" => expression = Some(Expression::new(&child, content)?),
@@ -106,8 +78,7 @@ impl Property {
 
         Ok(Property {
             modifiers,
-            name: name.context("no name found")?,
-            data_type,
+            variable_declaration: variable_declaration.context("no variable declaration found")?,
             extension_type,
             expression,
             mutability: mutability.context("no mutability modifier found")?,

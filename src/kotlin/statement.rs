@@ -2,9 +2,12 @@ use crate::kotlin::property::Property;
 use anyhow::{bail, Result};
 use tree_sitter::Node;
 
+use super::expression::Expression;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Statement {
     PropertyDeclaration(Property),
+    Expression(Expression),
 }
 
 pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
@@ -12,6 +15,12 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
+            "property_declaration" => statements.push(Statement::PropertyDeclaration(
+                Property::new(&child, content)?,
+            )),
+            "call_expression" => {
+                statements.push(Statement::Expression(Expression::new(&child, content)?))
+            }
             _ => {
                 bail!(
                     "[get_statements] unhandled child {} '{}' at {}",

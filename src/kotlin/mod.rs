@@ -21,6 +21,7 @@ mod object;
 mod package;
 mod property;
 mod statement;
+mod variable_declaration;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Type {
