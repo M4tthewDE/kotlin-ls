@@ -14,7 +14,9 @@ impl ValueArgument {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "call_expression" => expression = Some(Expression::new(&child, content)?),
+                "call_expression" | "navigation_expression" => {
+                    expression = Some(Expression::new(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "unhandled child {} '{}' at {}",
