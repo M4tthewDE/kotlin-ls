@@ -27,6 +27,10 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    Disjunction {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
     Identifier {
         identifier: String,
     },
@@ -43,6 +47,7 @@ impl Expression {
             "call_expression" => call_expression(node, content),
             "navigation_expression" => navigation_expression(node, content),
             "if_expression" => if_expression(node, content),
+            "disjunction_expression" => disjunction_expression(node, content),
             "equality_expression" => equality_expression(node, content),
             "simple_identifier" => identifier_expression(node, content),
             "infix_expression" => infix_expression(node, content),
@@ -218,7 +223,9 @@ fn if_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     for child in node.children(&mut cursor) {
         match child.kind() {
             "if" | "(" | ")" => {}
-            "equality_expression" => expression = Some(Expression::new(&child, content)?),
+            "equality_expression" | "disjunction_expression" => {
+                expression = Some(Expression::new(&child, content)?)
+            }
             "control_structure_body" => body = Some(ControlStructureBody::new(&child, content)?),
             _ => {
                 bail!(
@@ -267,6 +274,39 @@ fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     Ok(Expression::Equality {
         left: Box::new(left.context("[Expression::Equality] no left eexpression found")?),
         right: Box::new(right.context("[Expression::Equality] no right eexpression found")?),
+    })
+}
+
+fn disjunction_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let mut left = None;
+    let mut right = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let expression = match child.kind() {
+            "||" => None,
+            "simple_identifier" | "equality_expression" => Some(Expression::new(&child, content)?),
+            _ => {
+                bail!(
+                    "[Expression::Disjunction] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        };
+
+        if expression.is_some() {
+            if left.is_none() {
+                left = expression;
+            } else {
+                right = expression;
+            }
+        }
+    }
+
+    Ok(Expression::Disjunction {
+        left: Box::new(left.context("[Expression::Disjunction] no left eexpression found")?),
+        right: Box::new(right.context("[Expression::Disjunction] no right eexpression found")?),
     })
 }
 
