@@ -3,7 +3,6 @@ use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
 use super::{
-    comment::Comment,
     delegation::Delegation,
     function::Function,
     object::Object,
@@ -86,7 +85,6 @@ pub enum ClassBody {
         classes: Vec<Class>,
         companion_objects: Vec<CompanionObject>,
         anonymous_initializers: Vec<AnonymousInitializer>,
-        comments: Vec<Comment>,
     },
     Enum {
         entries: Vec<EnumEntry>,
@@ -101,11 +99,10 @@ impl ClassBody {
         let mut classes: Vec<Class> = Vec::new();
         let mut companion_objects = Vec::new();
         let mut anonymous_initializers = Vec::new();
-        let mut comments = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "{" | "}" | "line_comment" | "getter" | "setter" => {}
+                "{" | "}" | "line_comment" | "multiline_comment" | "getter" | "setter" => {}
                 "property_declaration" => {
                     properties.push(Property::new(&child, content)?);
                 }
@@ -123,9 +120,6 @@ impl ClassBody {
                 }
                 "anonymous_initializer" => {
                     anonymous_initializers.push(AnonymousInitializer::new(&child, content)?);
-                }
-                "multiline_comment" => {
-                    comments.push(Comment::new(&child, content)?);
                 }
                 _ => {
                     bail!(
@@ -145,7 +139,6 @@ impl ClassBody {
             classes,
             companion_objects,
             anonymous_initializers,
-            comments,
         })
     }
 
@@ -266,25 +259,22 @@ impl ClassParameter {
 pub struct Constructor {
     modifiers: Vec<Modifier>,
     parameters: Vec<ClassParameter>,
-    comments: Vec<Comment>,
 }
 
 impl Constructor {
     fn new(node: &Node, content: &[u8]) -> Result<Constructor> {
         let mut modifiers = Vec::new();
         let mut parameters = Vec::new();
-        let mut comments = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
-                "(" | "," | ")" | "constructor" => {}
+                "(" | "," | ")" | "constructor" | "line_comment" => {}
                 "modifiers" => {
                     for child in child.children(&mut cursor) {
                         modifiers.push(Modifier::new(&child, content)?);
                     }
                 }
                 "class_parameter" => parameters.push(ClassParameter::new(&child, content)?),
-                "line_comment" => comments.push(Comment::new(&child, content)?),
                 _ => {
                     bail!(
                         "[Constructor] unhandled child {} '{}' at {}",
@@ -299,7 +289,6 @@ impl Constructor {
         Ok(Constructor {
             parameters,
             modifiers,
-            comments,
         })
     }
 }

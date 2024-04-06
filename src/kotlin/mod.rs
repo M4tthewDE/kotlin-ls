@@ -9,7 +9,6 @@ use self::{class::Class, import::Import, package::Package};
 
 mod argument;
 mod class;
-mod comment;
 mod constructor_invocation;
 mod delegation;
 mod expression;
