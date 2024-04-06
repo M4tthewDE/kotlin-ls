@@ -41,6 +41,7 @@ pub enum ClassBody {
         functions: Vec<Function>,
         objects: Vec<Object>,
         classes: Vec<KotlinClass>,
+        companion_objects: Vec<CompanionObject>,
     },
 }
 
@@ -50,6 +51,7 @@ impl ClassBody {
         let mut functions: Vec<Function> = Vec::new();
         let mut objects: Vec<Object> = Vec::new();
         let mut classes: Vec<KotlinClass> = Vec::new();
+        let mut companion_objects = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
@@ -66,9 +68,13 @@ impl ClassBody {
                 "class_declaration" => {
                     classes.push(KotlinClass::new(&child, content)?);
                 }
+                "companion_object" => {
+                    companion_objects.push(CompanionObject::new(&child, content)?);
+                }
+
                 _ => {
                     bail!(
-                        "ClassBody: unhandled child {} '{}' at {}",
+                        "[ClassBody::Class] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
@@ -82,6 +88,37 @@ impl ClassBody {
             functions,
             objects,
             classes,
+            companion_objects,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct CompanionObject {
+    body: ClassBody,
+}
+
+impl CompanionObject {
+    fn new(node: &Node, content: &[u8]) -> Result<CompanionObject> {
+        let mut body = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "companion" | "object" => {}
+                "class_body" => body = Some(ClassBody::new_class_body(&child, content)?),
+                _ => {
+                    bail!(
+                        "[ClassBody::CompanionObject] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(CompanionObject {
+            body: body.context("no class body found")?,
         })
     }
 }
