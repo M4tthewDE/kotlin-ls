@@ -3,7 +3,6 @@ use tree_sitter::Node;
 
 use super::{
     argument::{self, ValueArgument},
-    function::Identifier,
     lambda::AnnotatedLambda,
     statement::{get_statements, Statement},
 };
@@ -33,7 +32,7 @@ pub enum Expression {
     },
     Infix {
         left: Box<Expression>,
-        middle: Identifier,
+        middle: String,
         right: Box<Expression>,
     },
 }
@@ -315,10 +314,7 @@ fn infix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         );
     }
 
-    let middle = Identifier {
-        name: middle_node.utf8_text(content)?.to_string(),
-        data_type: None,
-    };
+    let middle = middle_node.utf8_text(content)?.to_string();
 
     let right_node = node
         .child(0)
