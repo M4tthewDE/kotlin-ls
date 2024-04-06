@@ -10,10 +10,12 @@ pub struct Getter {
 
 impl Getter {
     pub fn new(node: &Node, content: &[u8]) -> Result<Getter> {
-        let function_body = None;
+        let mut function_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
+                "get" | "(" | ")" => {}
+                "function_body" => function_body = Some(FunctionBody::new(&node, content)?),
                 _ => {
                     bail!(
                         "[Getter] unhandled child {} '{}' at {}",
