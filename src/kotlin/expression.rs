@@ -42,7 +42,6 @@ pub enum Expression {
     },
     As {
         left: Box<Expression>,
-        middle: String,
         right: Box<Expression>,
     },
     Literal(Literal),
@@ -434,56 +433,21 @@ fn infix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 }
 
 fn as_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let left_node = node
-        .child(0)
-        .context(format!("too little children at {}", node.start_position()))?;
-    let left: Result<Expression> = match left_node.kind() {
-        "call_expression" => Ok(Expression::new(&left_node, content)?),
-        _ => {
-            bail!(
-                "[Expression::As] unhandled child {} '{}' at {}",
-                left_node.kind(),
-                left_node.utf8_text(content)?,
-                left_node.start_position(),
-            )
-        }
-    };
-
-    let middle_node = node
-        .child(1)
-        .context(format!("too little children at {}", node.start_position()))?;
-
-    if middle_node.kind() != "as" {
-        bail!(
-            "[Expression::As] incompatible middle node {} '{}' at {}",
-            middle_node.kind(),
-            middle_node.utf8_text(content)?,
-            middle_node.start_position(),
-        );
-    }
-
-    let middle = middle_node.utf8_text(content)?.to_string();
-
-    let right_node = node.child(2).context(format!(
-        "[Expresison::As] too little children at {}",
-        node.start_position()
-    ))?;
-    let right: Result<Expression> = match right_node.kind() {
-        "user_type" => Ok(Expression::new(&right_node, content)?),
-        _ => {
-            bail!(
-                "[Expression::As] unhandled child {} '{}' at {}",
-                right_node.kind(),
-                right_node.utf8_text(content)?,
-                right_node.start_position(),
-            )
-        }
-    };
-
     Ok(Expression::As {
-        left: Box::new(left?),
-        middle,
-        right: Box::new(right.context("[Expression::As] no right expression found")?),
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::As] too little children at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::As] too little children at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
     })
 }
 
