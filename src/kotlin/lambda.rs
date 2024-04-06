@@ -1,7 +1,10 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::statement::{self, Statement};
+use super::{
+    statement::{self, Statement},
+    variable_declaration::VariableDeclaration,
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct AnnotatedLambda {
@@ -45,7 +48,7 @@ impl LambdaLiteral {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "{" => {}
+                "{" | "->" => {}
                 "statements" => statements = Some(statement::get_statements(&child, content)?),
                 "lambda_parameters" => parameters = Some(get_parameters(&child, content)?),
                 _ => {
@@ -67,26 +70,8 @@ impl LambdaLiteral {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct LambdaParameter {}
-
-impl LambdaParameter {
-    pub fn new(node: &Node, content: &[u8]) -> Result<LambdaParameter> {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            match child.kind() {
-                _ => {
-                    bail!(
-                        "[LambdaParameter] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            }
-        }
-
-        Ok(LambdaParameter {})
-    }
+pub enum LambdaParameter {
+    VariableDeclaration(VariableDeclaration),
 }
 
 fn get_parameters(node: &Node, content: &[u8]) -> Result<Vec<LambdaParameter>> {
@@ -94,6 +79,10 @@ fn get_parameters(node: &Node, content: &[u8]) -> Result<Vec<LambdaParameter>> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
+            "," => {}
+            "variable_declaration" => parameters.push(LambdaParameter::VariableDeclaration(
+                VariableDeclaration::new(&child, content)?,
+            )),
             _ => {
                 bail!(
                     "[get_parameters] unhandled child {} '{}' at {}",
