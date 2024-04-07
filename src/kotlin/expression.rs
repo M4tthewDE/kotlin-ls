@@ -69,7 +69,7 @@ pub enum Expression {
     },
     Literal(Literal),
     When {
-        subject: WhenSubject,
+        subject: Option<WhenSubject>,
         entries: Vec<WhenEntry>,
     },
     CheckIn {
@@ -545,25 +545,11 @@ fn when_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "when" | "{" | "}" => {}
             "when_subject" => subject = Some(WhenSubject::new(&child, content)?),
             "when_entry" => entries.push(WhenEntry::new(&child, content)?),
-            _ => {
-                bail!(
-                    "[Expression::When] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
-            }
+            _ => {}
         }
     }
 
-    Ok(Expression::When {
-        subject: subject.context(format!(
-            "[Expression::When] no expression at {}",
-            node.start_position()
-        ))?,
-        entries,
-    })
+    Ok(Expression::When { subject, entries })
 }
