@@ -91,7 +91,9 @@ impl Expression {
             "if_expression" => if_expression(node, content),
             "disjunction_expression" => disjunction_expression(node, content),
             "equality_expression" => equality_expression(node, content),
-            "simple_identifier" => identifier_expression(node, content),
+            "simple_identifier" => Ok(Expression::Identifier {
+                identifier: node.utf8_text(content)?.to_string(),
+            }),
             "infix_expression" => infix_expression(node, content),
             "as_expression" => as_expression(node, content),
             "elvis_expression" => elvis_expression(node, content),
@@ -312,21 +314,6 @@ fn disjunction_expression(node: &Node, content: &[u8]) -> Result<Expression> {
             ))?,
             content,
         )?),
-    })
-}
-
-fn identifier_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    if node.kind() != "simple_identifier" {
-        bail!(
-            "[Expression::Identifier]  invalid node {} '{}' at {}",
-            node.kind(),
-            node.utf8_text(content)?,
-            node.start_position(),
-        );
-    }
-
-    Ok(Expression::Identifier {
-        identifier: node.utf8_text(content)?.to_string(),
     })
 }
 
