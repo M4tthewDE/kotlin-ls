@@ -3,11 +3,14 @@ use tree_sitter::Node;
 
 use super::{
     argument::{self, Argument},
+    label::Label,
     lambda::AnnotatedLambda,
     literal::Literal,
     statement::{self, Statement},
     types::Type,
 };
+
+mod jump;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum EqualityOperator {
@@ -85,6 +88,10 @@ pub enum Expression {
         right: Box<Expression>,
     },
     Type(Type),
+    JumpThrow(Box<Expression>),
+    JumpReturn(Option<Label>, Box<Option<Expression>>),
+    JumpContinue(Option<Label>),
+    JumpBreak(Option<Label>),
 }
 
 impl Expression {
@@ -107,6 +114,7 @@ impl Expression {
             }
             "when_expression" => when_expression(node, content),
             "user_type" => Ok(Expression::Type(Type::new(node, content)?)),
+            "jump_expression" => jump::expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",

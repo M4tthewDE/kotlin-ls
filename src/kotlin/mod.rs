@@ -15,6 +15,7 @@ mod expression;
 mod function;
 mod getter;
 mod import;
+mod label;
 mod lambda;
 mod literal;
 mod modifier;
@@ -64,7 +65,10 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
         let tree = parser
             .parse(&content, None)
             .context(format!("failed to parse {path:?}"))?;
-        files.insert(path.clone(), KotlinFile::new(&tree, &content)?);
+        files.insert(
+            path.clone(),
+            KotlinFile::new(&tree, &content).context(format!("failed to analyze {path:?}"))?,
+        );
     }
 
     Ok(files)
