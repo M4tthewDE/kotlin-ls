@@ -5,7 +5,7 @@ use super::{
     argument::{self, Argument},
     lambda::AnnotatedLambda,
     literal::Literal,
-    statement::{get_statements, Statement},
+    statement::{self, Statement},
     types::Type,
 };
 
@@ -228,37 +228,26 @@ pub struct ControlStructureBody {
 
 impl ControlStructureBody {
     pub fn new(node: &Node, content: &[u8]) -> Result<ControlStructureBody> {
-        let mut statements = None;
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            match child.kind() {
-                "{" | "}" => {}
-                "statements" => statements = Some(get_statements(&child, content)?),
-                // FIXME: this feels like a hack, maybe directly create a statment instead?
-                // we know at this point that there is only one
-                "call_expression" => statements = Some(get_statements(node, content)?),
-                "null" => {
-                    statements = Some(vec![Statement::Expression(Expression::new(
-                        &child, content,
-                    )?)])
-                }
-                _ => {
-                    bail!(
-                        "[ControlStructureBody] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            }
-        }
+        let child = node.child(0).context(format!(
+            "[ControlStructureBody] no child at {}",
+            node.start_position()
+        ))?;
 
-        Ok(ControlStructureBody {
-            statements: statements.context(format!(
-                "[ControlStructureBody] no statements found at {}",
-                node.start_position()
-            ))?,
-        })
+        match child.kind() {
+            "{" => Ok(ControlStructureBody {
+                statements: statement::get_statements(
+                    &node.child(1).context(format!(
+                        "[ControlStructureBody] no child at {}",
+                        node.start_position()
+                    ))?,
+                    content,
+                )
+                .unwrap_or_default(),
+            }),
+            _ => Ok(ControlStructureBody {
+                statements: statement::get_statements(&child, content).unwrap_or_default(),
+            }),
+        }
     }
 }
 
