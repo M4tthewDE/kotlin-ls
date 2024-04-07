@@ -76,6 +76,10 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    CheckAs {
+        left: Box<Expression>,
+        right: Type,
+    },
     Elvis {
         left: Box<Expression>,
         right: Box<Expression>,
@@ -383,54 +387,51 @@ fn elvis_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 }
 
 fn check_expression(node: &Node, content: &[u8]) -> Result<Expression> {
-    let mut left = None;
-    let mut right = None;
-    let mut check_type = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        match child.kind() {
-            "in" => check_type = Some("in".to_string()),
-            "simple_identifier" => {
-                if left.is_none() {
-                    left = Some(Expression::new(&child, content)?)
-                } else if let Some(ref c) = check_type {
-                    if c == "in" {
-                        right = Some(Expression::new(&child, content)?)
-                    } else {
-                        bail!(
-                            "[Expression::Check] invalid check type {} for {} at {}",
-                            c,
-                            child.kind(),
-                            child.start_position(),
-                        )
-                    }
-                } else {
-                    bail!(
-                        "[Expression::Check] check type has to be known at {}",
-                        child.start_position()
-                    )
-                }
-            }
-            _ => {
-                bail!(
-                    "[Expression::Check] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
-            }
-        }
-    }
+    let operator_node = &node.child(1).context(format!(
+        "[Expression::Check] too little children at {}",
+        node.start_position()
+    ))?;
 
-    Ok(Expression::CheckIn {
-        left: Box::new(left.context(format!(
-            "[Expression::Check] no left side at {}",
-            node.start_position()
-        ))?),
-        right: Box::new(right.context(format!(
-            "[Expression::Check] no right side at {}",
-            node.start_position()
-        ))?),
+    Ok(match operator_node.kind() {
+        "in" => Expression::CheckIn {
+            left: Box::new(Expression::new(
+                &node.child(0).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
+            right: Box::new(Expression::new(
+                &node.child(2).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
+        },
+        "as" => Expression::CheckAs {
+            left: Box::new(Expression::new(
+                &node.child(0).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
+            right: Type::new(
+                &node.child(2).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?,
+        },
+        op => {
+            bail!(
+                "[Expression::Check] unhandled operator {} at {}",
+                op,
+                node.start_position(),
+            )
+        }
     })
 }
 
