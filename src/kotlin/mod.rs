@@ -2,6 +2,7 @@ use std::{hash::Hash, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dashmap::DashMap;
+use tracing::error;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
@@ -48,7 +49,9 @@ impl KotlinFile {
 
 pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
     let mut parser = Parser::new();
-    parser.set_language(tree_sitter_kotlin::language()).unwrap();
+    parser
+        .set_language(tree_sitter_kotlin::language())
+        .context("failed to create kotlin parser")?;
 
     let files = DashMap::new();
     for path in WalkDir::new(p)
@@ -58,12 +61,16 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
         .filter(|e| e.path().extension().map_or(false, |ext| ext == "kt"))
         .map(|e| e.into_path())
     {
-        let content = std::fs::read(&path).unwrap();
-        let tree = parser.parse(&content, None).unwrap();
-        files.insert(
-            path.clone(),
-            KotlinFile::new(&tree, &content).context(format!("file: {path:?}"))?,
-        );
+        let content = std::fs::read(&path)?;
+        let tree = parser
+            .parse(&content, None)
+            .context(format!("failed to parse {path:?}"))?;
+        match KotlinFile::new(&tree, &content) {
+            Ok(file) => {
+                files.insert(path.clone(), file);
+            }
+            Err(err) => error!("failed to analyzer {path:?}: {}", err),
+        }
     }
 
     Ok(files)
