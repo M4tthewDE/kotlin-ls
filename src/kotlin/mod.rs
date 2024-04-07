@@ -8,6 +8,7 @@ use walkdir::WalkDir;
 use self::{class::Class, import::Import, package::Package};
 
 mod argument;
+mod assignment;
 mod class;
 mod constructor_invocation;
 mod delegation;

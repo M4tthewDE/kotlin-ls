@@ -92,6 +92,7 @@ pub enum Expression {
     JumpReturn(Option<Label>, Box<Option<Expression>>),
     JumpContinue(Option<Label>),
     JumpBreak(Option<Label>),
+    DirectlyAssignable(Box<Expression>),
 }
 
 impl Expression {
@@ -115,6 +116,15 @@ impl Expression {
             "when_expression" => when_expression(node, content),
             "user_type" => Ok(Expression::Type(Type::new(node, content)?)),
             "jump_expression" => jump::expression(node, content),
+            "directly_assignable_expression" => {
+                Ok(Expression::DirectlyAssignable(Box::new(Expression::new(
+                    &node.child(0).context(format!(
+                        "[Expression::DirectlyAssignable] no child at {}",
+                        node.start_position()
+                    ))?,
+                    content,
+                )?)))
+            }
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
