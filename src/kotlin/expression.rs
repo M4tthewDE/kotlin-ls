@@ -181,12 +181,14 @@ pub struct NavigationSuffix {
 
 impl NavigationSuffix {
     pub fn new(node: &Node, content: &[u8]) -> Result<NavigationSuffix> {
-        let mut identifier = None;
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            match child.kind() {
-                "." => {}
-                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
+        let child = node.child(1).context(format!(
+            "[NavigationSuffix] no navigation_suffix found at {}",
+            node.start_position()
+        ))?;
+
+        Ok(NavigationSuffix {
+            identifier: match child.kind() {
+                "simple_identifier" => child.utf8_text(content)?.to_string(),
                 _ => {
                     bail!(
                         "[NavigationSuffix] unhandled child {} '{}' at {}",
@@ -195,11 +197,7 @@ impl NavigationSuffix {
                         child.start_position(),
                     )
                 }
-            }
-        }
-
-        Ok(NavigationSuffix {
-            identifier: identifier.context("no identifier found")?,
+            },
         })
     }
 }
