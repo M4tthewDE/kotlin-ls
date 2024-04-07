@@ -2,7 +2,6 @@ use std::{hash::Hash, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dashmap::DashMap;
-use tracing::error;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
@@ -65,12 +64,7 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
         let tree = parser
             .parse(&content, None)
             .context(format!("failed to parse {path:?}"))?;
-        match KotlinFile::new(&tree, &content) {
-            Ok(file) => {
-                files.insert(path.clone(), file);
-            }
-            Err(err) => error!("failed to analyzer {path:?}: {}", err),
-        }
+        files.insert(path.clone(), KotlinFile::new(&tree, &content)?);
     }
 
     Ok(files)

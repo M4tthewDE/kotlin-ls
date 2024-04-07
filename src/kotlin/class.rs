@@ -337,7 +337,7 @@ impl Class {
                 "enum_class_body" => body = Some(ClassBody::new_enum_class_body(&child, content)?),
                 _ => {
                     bail!(
-                        "Class: unhandled child {} '{}' at {}",
+                        "[Class]: unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
@@ -347,8 +347,8 @@ impl Class {
         }
 
         Ok(Class {
-            class_type: class_type.context("no class type found")?,
-            name: name.context("no class name found")?,
+            class_type: class_type.context("[Class] no class type found")?,
+            name: name.context("[Class] no class name found")?,
             modifiers,
             delegations,
             constructor,
