@@ -108,22 +108,16 @@ impl Function {
             if child.kind() == "function_value_parameters" {
                 for child in child.children(&mut cursor) {
                     if child.kind() == "parameter" {
-                        let name = child
-                            .child(0)
-                            .context("no parameter name found")?
-                            .utf8_text(content)?
-                            .to_string();
-
-                        // TODO: use Type::new()
-                        let type_identifier = child
-                            .child(2)
-                            .context("no type identifier found")?
-                            .utf8_text(content)?
-                            .to_string();
-
                         parameters.push(Parameter {
-                            name,
-                            type_identifier: Type::Nullable(type_identifier),
+                            name: child
+                                .child(0)
+                                .context("no parameter name found")?
+                                .utf8_text(content)?
+                                .to_string(),
+                            type_identifier: Type::new(
+                                &child.child(2).context("no type identifier found")?,
+                                content,
+                            )?,
                         })
                     }
                 }

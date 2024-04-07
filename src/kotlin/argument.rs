@@ -118,7 +118,7 @@ pub fn get_type_argument(node: &Node, content: &[u8]) -> Result<Argument> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "<" | ">" => {}
+            "<" | ">" | "," => {}
             "type_projection" => type_projections.push(TypeProjection::new(&child, content)?),
             _ => {
                 bail!(
