@@ -471,32 +471,34 @@ impl WhenSubject {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum WhenCondition {
     Expression(Expression),
+    RangeTest(Expression),
+    TypeTest(Type),
 }
 
 impl WhenCondition {
     fn new(node: &Node, content: &[u8]) -> Result<WhenCondition> {
-        return if let Some(child) = node.child(0) {
-            match child.kind() {
-                "simple_identifier" => {
-                    Ok(WhenCondition::Expression(Expression::new(&child, content)?))
-                }
-                _ => {
-                    bail!(
-                        "[WhenCondition] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            }
-        } else {
-            bail!(
-                "[WhenCondition] unhandled node {} '{}' at {}",
-                node.kind(),
-                node.utf8_text(content)?,
-                node.start_position(),
-            )
-        };
+        let child = node.child(0).context(format!(
+            "[WhenCondition] no child 0 at {}",
+            node.start_position(),
+        ))?;
+
+        Ok(match child.kind() {
+            "in" => WhenCondition::RangeTest(Expression::new(
+                &node.child(1).context(format!(
+                    "[WhenCondition] no child 1 at {}",
+                    node.start_position(),
+                ))?,
+                content,
+            )?),
+            "as" => WhenCondition::TypeTest(Type::new(
+                &node.child(1).context(format!(
+                    "[WhenCondition] no child 1 at {}",
+                    node.start_position(),
+                ))?,
+                content,
+            )?),
+            _ => WhenCondition::Expression(Expression::new(&child, content)?),
+        })
     }
 }
 
