@@ -21,7 +21,7 @@ impl FunctionTypeParameter {
             match child.kind() {
                 "(" | ")" | ":" => {}
                 "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
-                "user_type" => param_type = Some(Type::new(&child, content)?),
+                "user_type" | "nullable_type" => param_type = Some(Type::new(&child, content)?),
                 _ => {
                     bail!(
                         "[FunctionTypeParameter] unhandled child {} '{}' at {}",
@@ -142,9 +142,11 @@ fn get_function_type_params(node: &Node, content: &[u8]) -> Result<Vec<FunctionT
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "(" | ")" => {}
+            "(" | ")" | "," => {}
             "parameter" => params.push(FunctionTypeParameter::new_parameter(&child, content)?),
-            "user_type" => params.push(FunctionTypeParameter::new_type(&child, content)?),
+            "user_type" | "nullable_type" => {
+                params.push(FunctionTypeParameter::new_type(&child, content)?)
+            }
             _ => {
                 bail!(
                     "[Type::Function::TypeParams] unhandled child {} '{}' at {}",
