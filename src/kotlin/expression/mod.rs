@@ -125,7 +125,15 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
-    CheckAs {
+    CheckIs {
+        left: Box<Expression>,
+        right: Type,
+    },
+    CheckNotIn {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
+    CheckNotIs {
         left: Box<Expression>,
         right: Type,
     },
@@ -154,6 +162,7 @@ pub enum Expression {
         catch_blocks: Vec<CatchBlock>,
         finally_block: Option<FinallyBlock>,
     },
+    Parenthesized(Box<Expression>),
 }
 
 impl Expression {
@@ -193,6 +202,13 @@ impl Expression {
                     content,
                 )?)))
             }
+            "parenthesized_expression" => Ok(Expression::Parenthesized(Box::new(Expression::new(
+                &node.child(1).context(format!(
+                    "[Expression::Parenthesized] no child at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?))),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -623,7 +639,39 @@ fn check_expression(node: &Node, content: &[u8]) -> Result<Expression> {
                 content,
             )?),
         },
-        "as" => Expression::CheckAs {
+        "!in" => Expression::CheckNotIn {
+            left: Box::new(Expression::new(
+                &node.child(0).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
+            right: Box::new(Expression::new(
+                &node.child(2).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
+        },
+        "is" => Expression::CheckIs {
+            left: Box::new(Expression::new(
+                &node.child(0).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
+            right: Type::new(
+                &node.child(2).context(format!(
+                    "[Expression::Check] too little children at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?,
+        },
+        "!is" => Expression::CheckNotIs {
             left: Box::new(Expression::new(
                 &node.child(0).context(format!(
                     "[Expression::Check] too little children at {}",
@@ -683,15 +731,15 @@ impl WhenCondition {
         ))?;
 
         Ok(match child.kind() {
-            "in" => WhenCondition::RangeTest(Expression::new(
-                &node.child(1).context(format!(
+            "range_test" => WhenCondition::RangeTest(Expression::new(
+                &child.child(1).context(format!(
                     "[WhenCondition] no child 1 at {}",
                     node.start_position(),
                 ))?,
                 content,
             )?),
-            "as" => WhenCondition::TypeTest(Type::new(
-                &node.child(1).context(format!(
+            "type_test" => WhenCondition::TypeTest(Type::new(
+                &child.child(1).context(format!(
                     "[WhenCondition] no child 1 at {}",
                     node.start_position(),
                 ))?,
@@ -716,7 +764,7 @@ impl WhenEntry {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "->" | "else" => {}
+                "->" | "else" | "," => {}
                 "when_condition" => condition = Some(WhenCondition::new(&child, content)?),
                 "control_structure_body" => {
                     body = Some(ControlStructureBody::new(&child, content)?)

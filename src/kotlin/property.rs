@@ -80,6 +80,7 @@ impl Property {
                 | "character_literal"
                 | "object_literal"
                 | "real_literal"
+                | "disjunction_expression"
                 | "check_expression"
                 | "null"
                 | "prefix_expression"
