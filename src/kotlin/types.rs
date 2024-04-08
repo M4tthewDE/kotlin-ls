@@ -115,10 +115,14 @@ fn get_function_type(node: &Node, content: &[u8]) -> Result<Type> {
                 content,
             )?,
             Box::new(Type::new(
-                &node.child(5).context(format!(
-                    "[Type::Function] no return type found at {}",
-                    node.start_position(),
-                ))?,
+                &node
+                    .child(4)
+                    .filter(|c| c.kind() != "->")
+                    .or_else(|| node.child(5))
+                    .context(format!(
+                        "[Type::Function] no return type found at {}",
+                        node.start_position(),
+                    ))?,
                 content,
             )?),
         ),
