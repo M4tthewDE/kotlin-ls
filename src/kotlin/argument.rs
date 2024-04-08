@@ -62,7 +62,8 @@ impl Argument {
                 | "as_expression"
                 | "boolean_literal"
                 | "null"
-                | "string_literal" => expression = Some(Expression::new(&child, content)?),
+                | "string_literal"
+                | "callable_reference" => expression = Some(Expression::new(&child, content)?),
                 "simple_identifier" => {
                     // simple_identifier has to be followed by "=", else it's an expression
                     if child.next_sibling().is_some() {

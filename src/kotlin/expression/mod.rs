@@ -97,6 +97,10 @@ pub enum Expression {
     JumpContinue(Option<Label>),
     JumpBreak(Option<Label>),
     DirectlyAssignable(Box<Expression>),
+    CallableReference {
+        left: Option<String>,
+        right: String,
+    },
 }
 
 impl Expression {
@@ -115,6 +119,7 @@ impl Expression {
             "as_expression" => as_expression(node, content),
             "elvis_expression" => elvis_expression(node, content),
             "check_expression" => check_expression(node, content),
+            "callable_reference" => callable_reference(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "null" => {
                 Ok(Expression::Literal(Literal::new(node, content)?))
             }
@@ -342,6 +347,37 @@ fn disjunction_expression(node: &Node, content: &[u8]) -> Result<Expression> {
             content,
         )?),
     })
+}
+
+fn callable_reference(node: &Node, content: &[u8]) -> Result<Expression> {
+    let first_node = &node.child(0).context(format!(
+        "[Expression::CallableReference] too little children at {}",
+        node.start_position()
+    ))?;
+
+    let (left, right) = match first_node.kind() {
+        "::" => (
+            None,
+            node.child(1)
+                .context(format!(
+                    "[Expression::CallableReference] too little children at {}",
+                    node.start_position()
+                ))?
+                .utf8_text(content)?
+                .to_string(),
+        ),
+        _ => (
+            Some(first_node.utf8_text(content)?.to_string()),
+            node.child(1)
+                .context(format!(
+                    "[Expression::CallableReference] too little children at {}",
+                    node.start_position()
+                ))?
+                .utf8_text(content)?
+                .to_string(),
+        ),
+    };
+    Ok(Expression::CallableReference { left, right })
 }
 
 fn conjunction_expression(node: &Node, content: &[u8]) -> Result<Expression> {
