@@ -93,6 +93,7 @@ impl Property {
                 | "long_literal"
                 | "character_literal"
                 | "object_literal"
+                | "real_literal"
                 | "check_expression"
                 | "null"
                 | "elvis_expression"

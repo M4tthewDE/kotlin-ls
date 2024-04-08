@@ -17,6 +17,7 @@ pub enum Literal {
     Object(ClassBody, Vec<Delegation>),
     Character(String),
     Lambda(Option<Vec<Statement>>, Option<Vec<LambdaParameter>>),
+    Real(String),
     Null,
 }
 
@@ -28,6 +29,7 @@ impl Literal {
             "integer_literal" => Ok(Literal::Integer(node.utf8_text(content)?.to_string())),
             "character_literal" => Ok(Literal::Character(node.utf8_text(content)?.to_string())),
             "long_literal" => Ok(Literal::Long(node.utf8_text(content)?.to_string())),
+            "real_literal" => Ok(Literal::Real(node.utf8_text(content)?.to_string())),
             "object_literal" => {
                 let mut delegations = Vec::new();
                 let mut cursor = node.walk();
