@@ -62,6 +62,10 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    Additive {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
     Identifier {
         identifier: String,
     },
@@ -111,6 +115,7 @@ impl Expression {
             "if_expression" => if_expression(node, content),
             "disjunction_expression" => disjunction_expression(node, content),
             "conjunction_expression" => conjunction_expression(node, content),
+            "additive_expression" => additive_expression(node, content),
             "equality_expression" => equality_expression(node, content),
             "simple_identifier" => Ok(Expression::Identifier {
                 identifier: node.utf8_text(content)?.to_string(),
@@ -392,6 +397,25 @@ fn conjunction_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         right: Box::new(Expression::new(
             &node.child(2).context(format!(
                 "[Expression::Conjunction] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+    })
+}
+
+fn additive_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Conjunction {
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Additive] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Additive] no expression found at {}",
                 node.start_position()
             ))?,
             content,

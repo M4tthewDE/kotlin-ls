@@ -23,7 +23,10 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             "assignment" => {
                 statements.push(Statement::Assignment(Assignment::new(&child, content)?))
             }
-            "call_expression" | "if_expression" => {
+            "call_expression"
+            | "if_expression"
+            | "navigation_expression"
+            | "additive_expression" => {
                 statements.push(Statement::Expression(Expression::new(&child, content)?))
             }
             _ => {
