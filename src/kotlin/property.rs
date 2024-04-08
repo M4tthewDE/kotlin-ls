@@ -48,7 +48,7 @@ pub struct Property {
 
 impl Property {
     pub fn new(node: &Node, content: &[u8]) -> Result<Property> {
-        let mut modifiers: Vec<Modifier> = Vec::new();
+        let mut modifiers = Vec::new();
         let mut variable_declaration = None;
         let mut mutability = None;
         let mut extension_type = None;
@@ -88,6 +88,7 @@ impl Property {
                 | "navigation_expression" => expression = Some(Expression::new(&child, content)?),
                 "property_delegate" => delegate = Some(PropertyDelegate::new(&child, content)?),
                 "getter" => getter = Some(Getter::new(&child, content)?),
+                "setter" => setter = Some(Setter::new(&child, content)?),
                 _ => {
                     bail!(
                         "[Property] unhandled child {} '{}' at {}",
@@ -99,6 +100,7 @@ impl Property {
             }
         }
 
+        // getter and setter can be both inside of property_declaration and outside!
         if let Some(next) = node.next_sibling() {
             match next.kind() {
                 "getter" => getter = Some(Getter::new(&next, content)?),
@@ -109,10 +111,11 @@ impl Property {
 
         Ok(Property {
             modifiers,
-            variable_declaration: variable_declaration.context("no variable declaration found")?,
+            variable_declaration: variable_declaration
+                .context("[Property] no variable declaration found")?,
             extension_type,
             expression,
-            mutability: mutability.context("no mutability modifier found")?,
+            mutability: mutability.context("[Property] no mutability modifier found")?,
             getter,
             setter,
             delegate,
