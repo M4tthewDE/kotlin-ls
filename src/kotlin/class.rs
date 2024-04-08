@@ -335,7 +335,7 @@ impl Class {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
-                ":" => {}
+                ":" | "," => {}
                 "modifiers" => {
                     for child in child.children(&mut cursor) {
                         modifiers.push(Modifier::new(&child, content)?);

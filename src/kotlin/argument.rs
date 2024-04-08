@@ -65,6 +65,7 @@ impl Argument {
                 | "string_literal"
                 | "lambda_literal"
                 | "integer_literal"
+                | "elvis_expression"
                 | "callable_reference" => expression = Some(Expression::new(&child, content)?),
                 "simple_identifier" => {
                     // simple_identifier has to be followed by "=", else it's an expression
