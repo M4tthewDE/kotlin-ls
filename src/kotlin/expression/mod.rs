@@ -647,28 +647,14 @@ pub struct WhenSubject {
 
 impl WhenSubject {
     fn new(node: &Node, content: &[u8]) -> Result<WhenSubject> {
-        let mut expression = None;
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            match child.kind() {
-                "(" | ")" => {}
-                "simple_identifier" => expression = Some(Expression::new(&child, content)?),
-                _ => {
-                    bail!(
-                        "[WhenSubject] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            }
-        }
-
         Ok(WhenSubject {
-            expression: Box::new(expression.context(format!(
-                "[WhenSubject] no expression at {}",
-                node.start_position()
-            ))?),
+            expression: Box::new(Expression::new(
+                &node.child(node.child_count() - 2).context(format!(
+                    "[WhenSubject] no child at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?),
         })
     }
 }
