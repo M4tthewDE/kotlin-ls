@@ -163,6 +163,7 @@ pub enum Expression {
         finally_block: Option<FinallyBlock>,
     },
     Parenthesized(Box<Expression>),
+    Indexing(Box<Expression>, IndexingSuffix),
 }
 
 impl Expression {
@@ -209,6 +210,7 @@ impl Expression {
                 ))?,
                 content,
             )?))),
+            "indexing_expression" => indexing_expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -800,4 +802,43 @@ fn when_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     }
 
     Ok(Expression::When { subject, entries })
+}
+
+fn indexing_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Indexing(
+        Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Indexing] no child at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        IndexingSuffix::new(
+            &node.child(0).context(format!(
+                "[Expression::Indexing] no child at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?,
+    ))
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct IndexingSuffix {
+    pub expressions: Vec<Expression>,
+}
+
+impl IndexingSuffix {
+    fn new(node: &Node, content: &[u8]) -> Result<IndexingSuffix> {
+        let mut expressions = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "[" | "," | "]" => {}
+                _ => expressions.push(Expression::new(&child, content)?),
+            }
+        }
+
+        Ok(IndexingSuffix { expressions })
+    }
 }
