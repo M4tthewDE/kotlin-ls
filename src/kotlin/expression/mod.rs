@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
+use self::r#try::{CatchBlock, FinallyBlock};
+
 use super::{
     argument::{self, Argument},
     label::Label,
@@ -11,6 +13,7 @@ use super::{
 };
 
 mod jump;
+mod r#try;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum MultiplicativeOperator {
@@ -146,6 +149,11 @@ pub enum Expression {
         operator: Option<PrefixUnaryOperator>,
         expression: Box<Expression>,
     },
+    Try {
+        block: Vec<Statement>,
+        catch_blocks: Vec<CatchBlock>,
+        finally_block: Option<FinallyBlock>,
+    },
 }
 
 impl Expression {
@@ -163,6 +171,7 @@ impl Expression {
             "simple_identifier" => Ok(Expression::Identifier {
                 identifier: node.utf8_text(content)?.to_string(),
             }),
+            "try_expression" => r#try::expression(node, content),
             "infix_expression" => infix_expression(node, content),
             "as_expression" => as_expression(node, content),
             "elvis_expression" => elvis_expression(node, content),
