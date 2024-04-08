@@ -90,6 +90,7 @@ impl Property {
                 | "string_literal"
                 | "integer_literal"
                 | "boolean_literal"
+                | "character_literal"
                 | "object_literal"
                 | "check_expression"
                 | "null"

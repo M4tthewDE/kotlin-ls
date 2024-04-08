@@ -9,6 +9,7 @@ pub enum Literal {
     String(String),
     Integer(String),
     Object(ClassBody, Vec<Delegation>),
+    Character(String),
     Null,
 }
 
@@ -18,6 +19,7 @@ impl Literal {
             "boolean_literal" => Ok(Literal::Boolean(node.utf8_text(content)?.to_string())),
             "string_literal" => Ok(Literal::String(node.utf8_text(content)?.to_string())),
             "integer_literal" => Ok(Literal::Integer(node.utf8_text(content)?.to_string())),
+            "character_literal" => Ok(Literal::Character(node.utf8_text(content)?.to_string())),
             "object_literal" => {
                 let mut delegations = Vec::new();
                 let mut cursor = node.walk();
