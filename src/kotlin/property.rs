@@ -96,6 +96,7 @@ impl Property {
                 | "check_expression"
                 | "null"
                 | "elvis_expression"
+                | "multiplicative_expression"
                 | "navigation_expression" => expression = Some(Expression::new(&child, content)?),
                 "property_delegate" => delegate = Some(PropertyDelegate::new(&child, content)?),
                 "getter" => getter = Some(Getter::new(&child, content)?),

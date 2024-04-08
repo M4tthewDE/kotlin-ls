@@ -13,6 +13,27 @@ use super::{
 mod jump;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum MultiplicativeOperator {
+    Mul,
+    Div,
+    Mod,
+}
+
+impl MultiplicativeOperator {
+    fn new(node: &Node, content: &[u8]) -> Result<MultiplicativeOperator> {
+        Ok(match node.utf8_text(content)? {
+            "*" => MultiplicativeOperator::Mul,
+            "/" => MultiplicativeOperator::Div,
+            "%" => MultiplicativeOperator::Mod,
+            _ => bail!(
+                "[MultiplicativeOperator] Invalid equality operator at {}",
+                node.start_position()
+            ),
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PrefixUnaryOperator {
     Increment,
     Decrement,
@@ -61,6 +82,11 @@ pub enum Expression {
     Equality {
         left: Box<Expression>,
         operator: EqualityOperator,
+        right: Box<Expression>,
+    },
+    Multiplicative {
+        left: Box<Expression>,
+        operator: MultiplicativeOperator,
         right: Box<Expression>,
     },
     Disjunction {
@@ -132,6 +158,7 @@ impl Expression {
             "conjunction_expression" => conjunction_expression(node, content),
             "additive_expression" => additive_expression(node, content),
             "equality_expression" => equality_expression(node, content),
+            "multiplicative_expression" => multiplicative_expression(node, content),
             "prefix_expression" => prefix_expression(node, content),
             "simple_identifier" => Ok(Expression::Identifier {
                 identifier: node.utf8_text(content)?.to_string(),
@@ -378,6 +405,32 @@ fn equality_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         right: Box::new(Expression::new(
             &node.child(2).context(format!(
                 "[Expression::Equality] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+    })
+}
+
+fn multiplicative_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Multiplicative {
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Multiplicative] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        operator: MultiplicativeOperator::new(
+            &node.child(1).context(format!(
+                "[Expression::Multiplicative] no operator found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?,
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Multiplicative] no expression found at {}",
                 node.start_position()
             ))?,
             content,
