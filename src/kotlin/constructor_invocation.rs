@@ -6,7 +6,7 @@ use super::{
     types::Type,
 };
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ConstructorInvocation {
     data_type: Type,
     arguments: Vec<Argument>,

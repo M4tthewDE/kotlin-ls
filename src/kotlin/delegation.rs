@@ -3,7 +3,7 @@ use tree_sitter::Node;
 
 use super::{constructor_invocation::ConstructorInvocation, types::Type};
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Delegation {
     Type(Type),
     ConstructorInvocation(ConstructorInvocation),

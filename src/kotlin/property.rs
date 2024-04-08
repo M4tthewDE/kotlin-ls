@@ -67,6 +67,8 @@ impl Property {
         let mut mutability = None;
         let mut extension_type = None;
         let mut expression = None;
+        let mut getter = None;
+        let mut setter = None;
         let mut delegate = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
@@ -88,11 +90,13 @@ impl Property {
                 | "string_literal"
                 | "integer_literal"
                 | "boolean_literal"
+                | "object_literal"
                 | "check_expression"
                 | "null"
                 | "elvis_expression"
                 | "navigation_expression" => expression = Some(Expression::new(&child, content)?),
                 "property_delegate" => delegate = Some(PropertyDelegate::new(&child, content)?),
+                "getter" => getter = Some(Getter::new(&child, content)?),
                 _ => {
                     bail!(
                         "[Property] unhandled child {} '{}' at {}",
@@ -103,9 +107,6 @@ impl Property {
                 }
             }
         }
-
-        let mut getter = None;
-        let mut setter = None;
 
         if let Some(next) = node.next_sibling() {
             match next.kind() {

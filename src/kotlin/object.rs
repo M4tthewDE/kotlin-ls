@@ -3,7 +3,7 @@ use tree_sitter::Node;
 
 use super::{delegation::Delegation, modifier::Modifier};
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Object {
     pub modifiers: Vec<Modifier>,
     pub name: String,

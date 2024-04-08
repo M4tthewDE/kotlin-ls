@@ -12,7 +12,7 @@ use super::{
     types::Type,
 };
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct EnumEntry {
     identifier: String,
 }
@@ -44,7 +44,7 @@ impl EnumEntry {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct AnonymousInitializer {
     statements: Vec<Statement>,
 }
@@ -77,7 +77,7 @@ impl AnonymousInitializer {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ClassBody {
     Class {
         properties: Vec<Property>,
@@ -93,7 +93,7 @@ pub enum ClassBody {
 }
 
 impl ClassBody {
-    fn new_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
+    pub fn new_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
         let mut properties: Vec<Property> = Vec::new();
         let mut functions: Vec<Function> = Vec::new();
         let mut objects: Vec<Object> = Vec::new();
@@ -165,7 +165,7 @@ impl ClassBody {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct CompanionObject {
     body: ClassBody,
 }
@@ -195,13 +195,13 @@ impl CompanionObject {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ClassParameterMutability {
     Val,
     Var,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ClassParameter {
     mutability: Option<ClassParameterMutability>,
     name: String,
@@ -269,7 +269,7 @@ impl ClassParameter {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Constructor {
     modifiers: Vec<Modifier>,
     parameters: Vec<ClassParameter>,
@@ -307,14 +307,14 @@ impl Constructor {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ClassType {
     Class,
     Interface,
     Enum,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Class {
     pub class_type: ClassType,
     pub name: String,

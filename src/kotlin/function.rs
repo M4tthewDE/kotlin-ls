@@ -2,7 +2,7 @@ use crate::kotlin::types::Type;
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum FunctionModifier {
     Annotation(String),
     Member(String),
@@ -60,7 +60,7 @@ impl FunctionBody {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Function {
     pub modifiers: Vec<FunctionModifier>,
     pub name: String,
