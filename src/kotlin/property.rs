@@ -96,6 +96,7 @@ impl Property {
                 | "real_literal"
                 | "check_expression"
                 | "null"
+                | "prefix_expression"
                 | "elvis_expression"
                 | "multiplicative_expression"
                 | "navigation_expression" => expression = Some(Expression::new(&child, content)?),

@@ -27,6 +27,8 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             | "if_expression"
             | "navigation_expression"
             | "when_expression"
+            | "boolean_literal"
+            | "elvis_expression"
             | "additive_expression" => {
                 statements.push(Statement::Expression(Expression::new(&child, content)?))
             }
