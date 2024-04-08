@@ -13,6 +13,15 @@ use super::{
 mod jump;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum PrefixUnaryOperator {
+    Increment,
+    Decrement,
+    Minus,
+    Plus,
+    Negation,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum EqualityOperator {
     ReferentialEquality,
     StructuralEquality,
@@ -105,6 +114,12 @@ pub enum Expression {
         left: Option<String>,
         right: String,
     },
+    Prefix {
+        annotation: Option<String>,
+        label: Option<Label>,
+        operator: Option<PrefixUnaryOperator>,
+        expression: Box<Expression>,
+    },
 }
 
 impl Expression {
@@ -117,6 +132,7 @@ impl Expression {
             "conjunction_expression" => conjunction_expression(node, content),
             "additive_expression" => additive_expression(node, content),
             "equality_expression" => equality_expression(node, content),
+            "prefix_expression" => prefix_expression(node, content),
             "simple_identifier" => Ok(Expression::Identifier {
                 identifier: node.utf8_text(content)?.to_string(),
             }),
@@ -306,6 +322,39 @@ fn if_expression(node: &Node, content: &[u8]) -> Result<Expression> {
             ))?,
             content,
         )?,
+    })
+}
+
+fn prefix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let child = node.child(0).context(format!(
+        "[Expression::Prefix] no child at {}",
+        node.start_position()
+    ))?;
+
+    let (annotation, label, operator) = match child.kind() {
+        "annotation" => (Some(child.utf8_text(content)?.to_string()), None, None),
+        "label" => (None, Some(Label::new(&child, content)?), None),
+        "++" => (None, None, Some(PrefixUnaryOperator::Increment)),
+        "--" => (None, None, Some(PrefixUnaryOperator::Decrement)),
+        "-" => (None, None, Some(PrefixUnaryOperator::Minus)),
+        "+" => (None, None, Some(PrefixUnaryOperator::Plus)),
+        "!" => (None, None, Some(PrefixUnaryOperator::Negation)),
+        _ => bail!(
+            "[Expression::Prefix] unknonwn child at {}",
+            child.start_position()
+        ),
+    };
+    Ok(Expression::Prefix {
+        annotation,
+        label,
+        operator,
+        expression: Box::new(Expression::new(
+            &node.child(1).context(format!(
+                "[Expression::Equality] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
     })
 }
 
