@@ -12,27 +12,14 @@ pub struct TypeProjection {
 
 impl TypeProjection {
     fn new(node: &Node, content: &[u8]) -> Result<TypeProjection> {
-        let mut data_type = None;
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            match child.kind() {
-                "user_type" => data_type = Some(Type::new(&child, content)?),
-                _ => {
-                    bail!(
-                        "[TypeProjection] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            }
-        }
-
         Ok(TypeProjection {
-            data_type: data_type.context(format!(
-                "[TypeProjection] no data type found at {}",
-                node.start_position()
-            ))?,
+            data_type: Type::new(
+                &node.child(node.child_count() - 1).context(format!(
+                    "[TypeProjection] no child at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?,
         })
     }
 }
