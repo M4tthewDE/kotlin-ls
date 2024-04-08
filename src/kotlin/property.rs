@@ -22,28 +22,14 @@ pub struct PropertyDelegate {
 
 impl PropertyDelegate {
     pub fn new(node: &Node, content: &[u8]) -> Result<PropertyDelegate> {
-        let mut expression = None;
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            match child.kind() {
-                "by" => {}
-                "call_expression" => expression = Some(Expression::new(&child, content)?),
-                _ => {
-                    bail!(
-                        "[Property] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            }
-        }
-
         Ok(PropertyDelegate {
-            expression: expression.context(format!(
-                "[Property] no expression found at {}",
-                node.start_position()
-            ))?,
+            expression: Expression::new(
+                &node.child(1).context(format!(
+                    "[PropertyDelegate] no expression at {}",
+                    node.start_position(),
+                ))?,
+                content,
+            )?,
         })
     }
 }
