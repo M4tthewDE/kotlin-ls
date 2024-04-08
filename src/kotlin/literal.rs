@@ -1,7 +1,12 @@
 use anyhow::{bail, Result};
 use tree_sitter::Node;
 
-use super::{class::ClassBody, delegation::Delegation};
+use super::{
+    class::ClassBody,
+    delegation::Delegation,
+    statement::{self, Statement},
+    variable_declaration::VariableDeclaration,
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Literal {
@@ -10,6 +15,7 @@ pub enum Literal {
     Integer(String),
     Object(ClassBody, Vec<Delegation>),
     Character(String),
+    Lambda(Option<Vec<Statement>>, Option<Vec<LambdaParameter>>),
     Null,
 }
 
@@ -48,6 +54,30 @@ impl Literal {
 
                 bail!("[Literal] no class_body at {}", node.start_position());
             }
+            "lambda_literal" => {
+                let mut statements = None;
+                let mut parameters = None;
+                let mut cursor = node.walk();
+                for child in node.children(&mut cursor) {
+                    match child.kind() {
+                        "{" | "->" | "}" => {}
+                        "statements" => {
+                            statements = Some(statement::get_statements(&child, content)?)
+                        }
+                        "lambda_parameters" => parameters = Some(get_parameters(&child, content)?),
+                        _ => {
+                            bail!(
+                                "[LambdaLiteral] unhandled child {} '{}' at {}",
+                                child.kind(),
+                                child.utf8_text(content)?,
+                                child.start_position(),
+                            )
+                        }
+                    }
+                }
+
+                Ok(Literal::Lambda(statements, parameters))
+            }
             "null" => Ok(Literal::Null),
             _ => {
                 bail!(
@@ -59,4 +89,32 @@ impl Literal {
             }
         }
     }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum LambdaParameter {
+    VariableDeclaration(VariableDeclaration),
+}
+
+fn get_parameters(node: &Node, content: &[u8]) -> Result<Vec<LambdaParameter>> {
+    let mut parameters = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "," => {}
+            "variable_declaration" => parameters.push(LambdaParameter::VariableDeclaration(
+                VariableDeclaration::new(&child, content)?,
+            )),
+            _ => {
+                bail!(
+                    "[get_parameters] unhandled child {} '{}' at {}",
+                    child.kind(),
+                    child.utf8_text(content)?,
+                    child.start_position(),
+                )
+            }
+        }
+    }
+
+    Ok(parameters)
 }
