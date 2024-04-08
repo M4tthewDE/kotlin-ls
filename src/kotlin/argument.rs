@@ -40,8 +40,9 @@ impl TypeProjection {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Argument {
     Value {
-        expression: Expression,
+        annotation: Option<String>,
         identifier: Option<String>,
+        expression: Expression,
     },
     Type {
         type_projections: Vec<TypeProjection>,
@@ -50,32 +51,14 @@ pub enum Argument {
 
 impl Argument {
     fn new_value_argument(node: &Node, content: &[u8]) -> Result<Argument> {
-        let mut expression = None;
         let mut identifier = None;
+        let mut annotation = None;
         let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
+        for child in node.children(&mut cursor).take(node.child_count() - 1) {
             match child.kind() {
                 "=" => {}
-                "call_expression"
-                | "navigation_expression"
-                | "infix_expression"
-                | "as_expression"
-                | "boolean_literal"
-                | "null"
-                | "string_literal"
-                | "lambda_literal"
-                | "integer_literal"
-                | "elvis_expression"
-                | "equality_expression"
-                | "callable_reference" => expression = Some(Expression::new(&child, content)?),
-                "simple_identifier" => {
-                    // simple_identifier has to be followed by "=", else it's an expression
-                    if child.next_sibling().is_some() {
-                        identifier = Some(child.utf8_text(content)?.to_string());
-                    } else {
-                        expression = Some(Expression::new(&child, content)?)
-                    }
-                }
+                "annotation" => annotation = Some(child.utf8_text(content)?.to_string()),
+                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
                 _ => {
                     bail!(
                         "[ValueArgument] unhandled child {} '{}' at {}",
@@ -88,11 +71,15 @@ impl Argument {
         }
 
         Ok(Argument::Value {
-            expression: expression.context(format!(
-                "[ValueArgument] no expression found at {}",
-                node.start_position()
-            ))?,
+            annotation,
             identifier,
+            expression: Expression::new(
+                &node.child(node.child_count() - 1).context(format!(
+                    "[ValueArgument] no child at {}",
+                    node.start_position()
+                ))?,
+                content,
+            )?,
         })
     }
 }
