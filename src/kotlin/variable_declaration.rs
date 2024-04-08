@@ -36,3 +36,33 @@ impl VariableDeclaration {
         })
     }
 }
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct MultiVariableDeclaration {
+    variable_declarations: Vec<VariableDeclaration>,
+}
+
+impl MultiVariableDeclaration {
+    pub fn new(node: &Node, content: &[u8]) -> Result<MultiVariableDeclaration> {
+        let mut vars = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "(" | "," | ")" => {}
+                "variable_declaration" => vars.push(VariableDeclaration::new(&child, content)?),
+                _ => {
+                    bail!(
+                        "[MultiVariableDeclaration] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
+            }
+        }
+
+        Ok(MultiVariableDeclaration {
+            variable_declarations: vars,
+        })
+    }
+}

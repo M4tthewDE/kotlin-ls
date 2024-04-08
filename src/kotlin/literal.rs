@@ -5,7 +5,7 @@ use super::{
     class::ClassBody,
     delegation::Delegation,
     statement::{self, Statement},
-    variable_declaration::VariableDeclaration,
+    variable_declaration::{MultiVariableDeclaration, VariableDeclaration},
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -98,6 +98,7 @@ impl Literal {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum LambdaParameter {
     VariableDeclaration(VariableDeclaration),
+    MultiVariableDeclaration(MultiVariableDeclaration),
 }
 
 fn get_parameters(node: &Node, content: &[u8]) -> Result<Vec<LambdaParameter>> {
@@ -109,6 +110,11 @@ fn get_parameters(node: &Node, content: &[u8]) -> Result<Vec<LambdaParameter>> {
             "variable_declaration" => parameters.push(LambdaParameter::VariableDeclaration(
                 VariableDeclaration::new(&child, content)?,
             )),
+            "multi_variable_declaration" => {
+                parameters.push(LambdaParameter::MultiVariableDeclaration(
+                    MultiVariableDeclaration::new(&child, content)?,
+                ))
+            }
             _ => {
                 bail!(
                     "[get_parameters] unhandled child {} '{}' at {}",

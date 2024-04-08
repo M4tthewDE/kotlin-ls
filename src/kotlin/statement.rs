@@ -29,7 +29,12 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             | "when_expression"
             | "boolean_literal"
             | "elvis_expression"
+            | "equality_expression"
+            | "infix_expression"
             | "try_expression"
+            | "null"
+            | "simple_identifier"
+            | "conjunction_expression"
             | "additive_expression" => {
                 statements.push(Statement::Expression(Expression::new(&child, content)?))
             }
