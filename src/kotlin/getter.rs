@@ -1,20 +1,35 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use tree_sitter::Node;
 
 use crate::kotlin::function::FunctionBody;
 
+use super::modifier::Modifier;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Getter {
-    function_body: FunctionBody,
+    modifiers: Option<Vec<Modifier>>,
+    function_body: Option<FunctionBody>,
 }
 
 impl Getter {
     pub fn new(node: &Node, content: &[u8]) -> Result<Getter> {
+        let modifiers = if let Some(modifiers_node) = node.child(0) {
+            let mut modifiers = Vec::new();
+            let mut cursor = node.walk();
+            for child in modifiers_node.children(&mut cursor) {
+                modifiers.push(Modifier::new(&child, content)?);
+            }
+
+            Some(modifiers)
+        } else {
+            None
+        };
+
         let mut function_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "get" | "(" | ")" => {}
+                "get" | "(" | ")" | "modifiers" => {}
                 "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
                 _ => {
                     bail!(
@@ -28,27 +43,41 @@ impl Getter {
         }
 
         Ok(Getter {
-            function_body: function_body.context("no function body found")?,
+            modifiers,
+            function_body,
         })
     }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Setter {
-    function_body: FunctionBody,
+    modifiers: Option<Vec<Modifier>>,
+    function_body: Option<FunctionBody>,
 }
 
 impl Setter {
     pub fn new(node: &Node, content: &[u8]) -> Result<Setter> {
+        let modifiers = if let Some(modifiers_node) = node.child(0) {
+            let mut modifiers = Vec::new();
+            let mut cursor = node.walk();
+            for child in modifiers_node.children(&mut cursor) {
+                modifiers.push(Modifier::new(&child, content)?);
+            }
+
+            Some(modifiers)
+        } else {
+            None
+        };
+
         let mut function_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "get" | "(" | ")" => {}
+                "set" | "(" | ")" | "modifiers" => {}
                 "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
                 _ => {
                     bail!(
-                        "[Getter] unhandled child {} '{}' at {}",
+                        "[Setter] unhandled child {} '{}' at {}",
                         child.kind(),
                         child.utf8_text(content)?,
                         child.start_position(),
@@ -58,7 +87,8 @@ impl Setter {
         }
 
         Ok(Setter {
-            function_body: function_body.context("no function body found")?,
+            modifiers,
+            function_body,
         })
     }
 }
