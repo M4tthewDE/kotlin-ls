@@ -51,10 +51,17 @@ impl FunctionTypeParameter {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum TypeModifier {
+    Annotation(String),
+    Suspend,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Type {
-    Nullable(String),
-    NonNullable(String),
+    Nullable(Vec<TypeModifier>, String),
+    NonNullable(Vec<TypeModifier>, String),
     Function {
+        modifiers: Vec<TypeModifier>,
         type_identifier: Option<String>,
         type_argument: Option<Box<Argument>>,
         parameters: Vec<FunctionTypeParameter>,
@@ -64,10 +71,41 @@ pub enum Type {
 
 impl Type {
     pub fn new(node: &Node, content: &[u8]) -> Result<Type> {
+        let modifiers = if let Some(prev) = node.prev_sibling() {
+            let mut mods = Vec::new();
+            let mut cursor = prev.walk();
+            for child in prev.children(&mut cursor) {
+                match child.kind() {
+                    "annotation" => mods.push(TypeModifier::Annotation(
+                        child.utf8_text(content)?.to_string(),
+                    )),
+                    "suspend" => mods.push(TypeModifier::Suspend),
+                    _ => {
+                        bail!(
+                            "[Type::Modifier] unhandled modifier {} '{}' at {}",
+                            child.kind(),
+                            child.utf8_text(content)?,
+                            child.start_position(),
+                        )
+                    }
+                }
+            }
+
+            mods
+        } else {
+            Vec::new()
+        };
+
         match node.kind() {
-            "function_type" => get_function_type(node, content),
-            "user_type" => Ok(Type::NonNullable(node.utf8_text(content)?.to_string())),
-            "nullable_type" => Ok(Type::Nullable(node.utf8_text(content)?.to_string())),
+            "function_type" => get_function_type(modifiers, node, content),
+            "user_type" => Ok(Type::NonNullable(
+                modifiers,
+                node.utf8_text(content)?.to_string(),
+            )),
+            "nullable_type" => Ok(Type::Nullable(
+                modifiers,
+                node.utf8_text(content)?.to_string(),
+            )),
             _ => {
                 bail!(
                     "[Type] unhandled type {} '{}' at {}",
@@ -80,7 +118,7 @@ impl Type {
     }
 }
 
-fn get_function_type(node: &Node, content: &[u8]) -> Result<Type> {
+fn get_function_type(modifiers: Vec<TypeModifier>, node: &Node, content: &[u8]) -> Result<Type> {
     let first_child = node.child(0).context(format!(
         "[Type::Function] no function parameters found at {}",
         node.start_position(),
@@ -134,6 +172,7 @@ fn get_function_type(node: &Node, content: &[u8]) -> Result<Type> {
         }
     };
     Ok(Type::Function {
+        modifiers,
         type_identifier,
         type_argument,
         parameters,

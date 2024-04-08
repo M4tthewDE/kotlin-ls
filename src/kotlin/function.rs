@@ -115,7 +115,11 @@ impl Function {
                                 .utf8_text(content)?
                                 .to_string(),
                             type_identifier: Type::new(
-                                &child.child(2).context("no type identifier found")?,
+                                &child
+                                    .child(2)
+                                    .filter(|c| c.kind() != "type_modifiers")
+                                    .or_else(|| child.child(3))
+                                    .context("no type identifier found")?,
                                 content,
                             )?,
                         })
