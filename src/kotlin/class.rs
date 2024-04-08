@@ -4,6 +4,7 @@ use tree_sitter::{Node, Tree};
 
 use super::{
     delegation::Delegation,
+    expression::Expression,
     function::Function,
     object::Object,
     property::Property,
@@ -206,6 +207,7 @@ pub struct ClassParameter {
     name: String,
     data_type: Type,
     modifiers: Vec<Modifier>,
+    expression: Option<Expression>,
 }
 
 impl ClassParameter {
@@ -214,6 +216,7 @@ impl ClassParameter {
         let mut name = None;
         let mut data_type = None;
         let mut modifiers = Vec::new();
+        let mut expression = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
@@ -229,6 +232,16 @@ impl ClassParameter {
                     data_type = Some(Type::new(&child, content)?)
                 }
                 ":" => {}
+                "=" => {
+                    expression = Some(Expression::new(
+                        &child.next_sibling().context(format!(
+                            "[ClassParameter] no sibling at {}",
+                            child.start_position()
+                        ))?,
+                        content,
+                    )?);
+                    break;
+                }
                 _ => {
                     bail!(
                         "[ClassParameter] unhandled child {} '{}' at {}",
@@ -251,6 +264,7 @@ impl ClassParameter {
                 node.start_position()
             ))?,
             modifiers,
+            expression,
         })
     }
 }
