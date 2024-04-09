@@ -5,7 +5,7 @@ use tree_sitter::{Node, Tree};
 use super::{
     delegation::Delegation,
     expression::Expression,
-    function::Function,
+    function::{Function, Parameter},
     object::Object,
     property::Property,
     statement::{self, Statement},
@@ -86,6 +86,7 @@ pub enum ClassBody {
         classes: Vec<Class>,
         companion_objects: Vec<CompanionObject>,
         anonymous_initializers: Vec<AnonymousInitializer>,
+        secondary_constructors: Vec<SecondaryConstructor>,
     },
     Enum {
         entries: Vec<EnumEntry>,
@@ -100,6 +101,7 @@ impl ClassBody {
         let mut classes: Vec<Class> = Vec::new();
         let mut companion_objects = Vec::new();
         let mut anonymous_initializers = Vec::new();
+        let mut secondary_constructors = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
@@ -122,6 +124,9 @@ impl ClassBody {
                 "anonymous_initializer" => {
                     anonymous_initializers.push(AnonymousInitializer::new(&child, content)?);
                 }
+                "secondary_constructor" => {
+                    secondary_constructors.push(SecondaryConstructor::new(&child, content)?);
+                }
                 _ => {
                     bail!(
                         "[ClassBody::Class] unhandled child {} '{}' at {}",
@@ -140,6 +145,7 @@ impl ClassBody {
             classes,
             companion_objects,
             anonymous_initializers,
+            secondary_constructors,
         })
     }
 
@@ -393,5 +399,49 @@ pub fn get_classes(tree: &Tree, content: &[u8]) -> Result<Vec<Class>> {
                 return Ok(classes);
             }
         }
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct SecondaryConstructor {
+    pub parameters: Vec<Parameter>,
+    pub block: Vec<Statement>,
+}
+
+impl SecondaryConstructor {
+    fn new(node: &Node, content: &[u8]) -> Result<SecondaryConstructor> {
+        let mut parameters = Vec::new();
+        let mut block = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "statements" => block = statement::get_statements(&child, content)?,
+                "function_value_parameters" => {
+                    let mut cursor = child.walk();
+                    for child in child.children(&mut cursor) {
+                        if child.kind() == "parameter" {
+                            parameters.push(Parameter {
+                                name: child
+                                    .child(0)
+                                    .context("no parameter name found")?
+                                    .utf8_text(content)?
+                                    .to_string(),
+                                type_identifier: Type::new(
+                                    &child
+                                        .child(2)
+                                        .filter(|c| c.kind() != "type_modifiers")
+                                        .or_else(|| child.child(3))
+                                        .context("no type identifier found")?,
+                                    content,
+                                )?,
+                            })
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(SecondaryConstructor { parameters, block })
     }
 }
