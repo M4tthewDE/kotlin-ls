@@ -390,43 +390,45 @@ pub struct NavigationSuffix {
 
 impl NavigationSuffix {
     pub fn new(node: &Node, content: &[u8]) -> Result<NavigationSuffix> {
-        let child = node.child(1).context(format!(
-            "[NavigationSuffix] no navigation_suffix found at {}",
-            node.start_position()
-        ))?;
+        let mut identifier = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "simple_identifier" {
+                identifier = Some(child.utf8_text(content)?.to_string());
+            }
+        }
 
         Ok(NavigationSuffix {
-            identifier: match child.kind() {
-                "simple_identifier" => child.utf8_text(content)?.to_string(),
-                _ => {
-                    bail!(
-                        "[NavigationSuffix] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            },
+            identifier: identifier.context(format!(
+                "[NavigationSuffix] no identifier at {} - {}",
+                node.start_position(),
+                node.end_position()
+            ))?,
         })
     }
 }
 
 fn navigation_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let mut suffix = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "navigation_suffix" {
+            suffix = Some(NavigationSuffix::new(&child, content)?);
+        }
+    }
     Ok(Expression::Navigation {
         expression: Box::new(Expression::new(
             &node.child(0).context(format!(
-                "[Expression::Call] no expression found at {}",
+                "[Expression::Navigation] no expression found at {}",
                 node.start_position()
             ))?,
             content,
         )?),
-        navigation_suffix: NavigationSuffix::new(
-            &node.child(1).context(format!(
-                "[Expression::Call] no expression found at {}",
-                node.start_position()
-            ))?,
-            content,
-        )?,
+        navigation_suffix: suffix.context(format!(
+            "[Expression::Navigation] no identifier at {} - {}",
+            node.start_position(),
+            node.end_position()
+        ))?,
     })
 }
 
