@@ -46,6 +46,13 @@ pub enum PrefixUnaryOperator {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum PostfixUnaryOperator {
+    Increment,
+    Decrement,
+    NullAssertion,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum EqualityOperator {
     ReferentialEquality,
     StructuralEquality,
@@ -157,6 +164,10 @@ pub enum Expression {
         operator: Option<PrefixUnaryOperator>,
         expression: Box<Expression>,
     },
+    Postfix {
+        operator: PostfixUnaryOperator,
+        expression: Box<Expression>,
+    },
     Try {
         block: Vec<Statement>,
         catch_blocks: Vec<CatchBlock>,
@@ -178,6 +189,7 @@ impl Expression {
             "equality_expression" => equality_expression(node, content),
             "multiplicative_expression" => multiplicative_expression(node, content),
             "prefix_expression" => prefix_expression(node, content),
+            "postfix_expression" => postfix_expression(node, content),
             "simple_identifier" => Ok(Expression::Identifier {
                 identifier: node.utf8_text(content)?.to_string(),
             }),
@@ -405,7 +417,34 @@ fn prefix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
         operator,
         expression: Box::new(Expression::new(
             &node.child(1).context(format!(
-                "[Expression::Equality] no expression found at {}",
+                "[Expression::Prefix] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+    })
+}
+
+fn postfix_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    let child = node.child(1).context(format!(
+        "[Expression::Postfix] no child at {}",
+        node.start_position()
+    ))?;
+
+    let operator = match child.kind() {
+        "++" => PostfixUnaryOperator::Increment,
+        "--" => PostfixUnaryOperator::Decrement,
+        "!!" => PostfixUnaryOperator::NullAssertion,
+        _ => bail!(
+            "[Expression::Postfix] unknonwn child at {}",
+            child.start_position()
+        ),
+    };
+    Ok(Expression::Postfix {
+        operator,
+        expression: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Postfix] no expression found at {}",
                 node.start_position()
             ))?,
             content,
