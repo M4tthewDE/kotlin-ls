@@ -249,6 +249,9 @@ pub enum Expression {
     },
     Parenthesized(Box<Expression>),
     Indexing(Box<Expression>, IndexingSuffix),
+    This {
+        identifier: Option<String>,
+    },
 }
 
 impl Expression {
@@ -297,6 +300,7 @@ impl Expression {
                 content,
             )?))),
             "indexing_expression" => indexing_expression(node, content),
+            "this_expression" => this_expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -980,4 +984,37 @@ impl IndexingSuffix {
 
         Ok(IndexingSuffix { expressions })
     }
+}
+
+fn this_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(
+        match node
+            .child(0)
+            .context(format!(
+                "[Expression::This] no child at {}",
+                node.start_position()
+            ))?
+            .kind()
+        {
+            "this" => Expression::This { identifier: None },
+            "this@" => Expression::This {
+                identifier: Some(
+                    node.child(1)
+                        .context(format!(
+                            "[Expression::This] no child at {}",
+                            node.start_position()
+                        ))?
+                        .utf8_text(content)?
+                        .to_string(),
+                ),
+            },
+            this => {
+                bail!(
+                    "[Expression::This] unhandled this {} at {}",
+                    this,
+                    node.start_position(),
+                )
+            }
+        },
+    )
 }
