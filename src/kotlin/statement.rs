@@ -5,6 +5,7 @@ use tree_sitter::Node;
 use super::{
     assignment::Assignment,
     expression::{Expression, EXPRESSIONS},
+    function::Function,
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -12,6 +13,7 @@ pub enum Statement {
     PropertyDeclaration(Property),
     Expression(Expression),
     Assignment(Assignment),
+    Function(Function),
 }
 
 pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
@@ -23,6 +25,9 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             "property_declaration" => statements.push(Statement::PropertyDeclaration(
                 Property::new(&child, content)?,
             )),
+            "function_declaration" => {
+                statements.push(Statement::Function(Function::new(&child, content)?))
+            }
             "assignment" => {
                 statements.push(Statement::Assignment(Assignment::new(&child, content)?))
             }
