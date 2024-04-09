@@ -1,10 +1,10 @@
 use crate::kotlin::property::Property;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
 use super::{
     assignment::Assignment,
-    expression::{Expression, EXPRESSIONS},
+    expression::{ControlStructureBody, Expression, EXPRESSIONS},
     function::Function,
 };
 
@@ -14,6 +14,7 @@ pub enum Statement {
     Expression(Expression),
     Assignment(Assignment),
     Function(Function),
+    While(Expression, Option<ControlStructureBody>),
 }
 
 pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
@@ -31,6 +32,7 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             "assignment" => {
                 statements.push(Statement::Assignment(Assignment::new(&child, content)?))
             }
+            "while_statement" => statements.push(while_statement(&child, content)?),
             kind => {
                 if EXPRESSIONS.contains(&kind) {
                     statements.push(Statement::Expression(Expression::new(&child, content)?))
@@ -47,4 +49,34 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
     }
 
     Ok(statements)
+}
+
+fn while_statement(node: &Node, content: &[u8]) -> Result<Statement> {
+    if let Some(last) = node.child(node.child_count() - 1) {
+        if last.kind() == ";" {
+            Ok(Statement::While(
+                Expression::new(
+                    &node.child(2).context(format!(
+                        "[Statement::While] no child at {}",
+                        node.start_position()
+                    ))?,
+                    content,
+                )?,
+                None,
+            ))
+        } else {
+            Ok(Statement::While(
+                Expression::new(
+                    &node.child(2).context(format!(
+                        "[Statement::While] no child at {}",
+                        node.start_position()
+                    ))?,
+                    content,
+                )?,
+                ControlStructureBody::new(&last, content).ok(),
+            ))
+        }
+    } else {
+        bail!("[Statement::While] no child at {}", node.start_position());
+    }
 }

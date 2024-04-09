@@ -6,6 +6,9 @@ use tracing::{debug, error};
 #[test]
 fn test_dankchat() {
     tracing_subscriber::fmt().init();
+
+    let mut failures = Vec::new();
+
     for (path, file) in kotlin::from_path("DankChat").unwrap() {
         match file {
             Ok(f) => {
@@ -13,7 +16,17 @@ fn test_dankchat() {
                     debug!("{:?}", f);
                 }
             }
-            Err(err) => error!("{:?}", err),
+            Err(err) => {
+                failures.push(err);
+            }
         }
+    }
+
+    if !failures.is_empty() {
+        for failure in failures {
+            error!("{failure:?}")
+        }
+
+        panic!("There were failures!");
     }
 }
