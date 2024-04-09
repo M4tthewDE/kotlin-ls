@@ -15,38 +15,43 @@ use super::{
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct EnumEntry {
+    modifiers: Vec<Modifier>,
     identifier: String,
     value_arguments: Option<Vec<Argument>>,
+    class_body: Option<ClassBody>,
 }
 
 impl EnumEntry {
     fn new(node: &Node, content: &[u8]) -> Result<EnumEntry> {
         let mut identifier = None;
         let mut value_arguments = None;
+        let mut modifiers = Vec::new();
+        let mut class_body = None;
         let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
+        for child in node.children(&mut cursor.clone()) {
             match child.kind() {
+                "modifiers" => {
+                    for child in child.children(&mut cursor) {
+                        modifiers.push(Modifier::new(&child, content)?);
+                    }
+                }
                 "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
                 "value_arguments" => {
                     value_arguments = Some(argument::get_value_arguments(&child, content)?)
                 }
-                _ => {
-                    bail!(
-                        "[EnumEntry] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
+                "class_body" => class_body = Some(ClassBody::new_class_body(&child, content)?),
+                _ => {}
             }
         }
 
         Ok(EnumEntry {
+            modifiers,
             identifier: identifier.context(format!(
                 "[EnumEntry] no identifier at {}",
                 node.start_position()
             ))?,
             value_arguments,
+            class_body,
         })
     }
 }
