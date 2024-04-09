@@ -1,7 +1,6 @@
-use std::{hash::Hash, path::PathBuf};
+use std::{collections::HashMap, hash::Hash, path::PathBuf};
 
 use anyhow::{Context, Result};
-use dashmap::DashMap;
 use tree_sitter::{Parser, Tree};
 use walkdir::WalkDir;
 
@@ -48,13 +47,13 @@ impl KotlinFile {
     }
 }
 
-pub fn from_path(p: &str) -> Result<DashMap<PathBuf, Result<KotlinFile>>> {
+pub fn from_path(p: &str) -> Result<HashMap<PathBuf, Result<KotlinFile>>> {
     let mut parser = Parser::new();
     parser
         .set_language(tree_sitter_kotlin::language())
         .context("failed to create kotlin parser")?;
 
-    let files = DashMap::new();
+    let mut files = HashMap::new();
     for path in WalkDir::new(p)
         .into_iter()
         .filter_map(|e| e.ok())
