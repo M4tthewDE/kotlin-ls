@@ -10,7 +10,7 @@ use super::{
     object::Object,
     property::Property,
     statement::{self, Statement},
-    types::Type,
+    types::{Type, TypeParameter},
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -376,6 +376,7 @@ pub struct Class {
     pub class_type: ClassType,
     pub name: String,
     pub modifiers: Vec<Modifier>,
+    pub type_parameters: Vec<TypeParameter>,
     pub constructor: Option<Constructor>,
     pub delegations: Vec<Delegation>,
     pub body: Option<ClassBody>,
@@ -386,6 +387,7 @@ impl Class {
         let mut modifiers = Vec::new();
         let mut class_type = None;
         let mut name = None;
+        let mut type_parameters = Vec::new();
         let mut constructor = None;
         let mut body = None;
         let mut delegations = Vec::new();
@@ -406,6 +408,13 @@ impl Class {
                 "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
                 "class_body" => body = Some(ClassBody::new_class_body(&child, content)?),
                 "enum_class_body" => body = Some(ClassBody::new_enum_class_body(&child, content)?),
+                "type_parameters" => {
+                    for child in child.children(&mut cursor) {
+                        if child.kind() == "type_parameter" {
+                            type_parameters.push(TypeParameter::new(&child, content)?)
+                        }
+                    }
+                }
                 _ => {
                     bail!(
                         "[Class]: unhandled child {} '{}' at {}",
@@ -421,6 +430,7 @@ impl Class {
             class_type: class_type.context("[Class] no class type found")?,
             name: name.context("[Class] no class name found")?,
             modifiers,
+            type_parameters,
             delegations,
             constructor,
             body,

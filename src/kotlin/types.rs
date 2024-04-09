@@ -6,6 +6,15 @@ use super::{
     function::Parameter,
 };
 
+const TYPES: [&str; 6] = [
+    "parenthesized_type",
+    "nullable_Type",
+    "user_type",
+    "dynamic",
+    "function_type",
+    "non_nullable_type",
+];
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum FunctionTypeParameter {
     Parameter(Parameter),
@@ -202,4 +211,43 @@ fn get_function_type_params(node: &Node, content: &[u8]) -> Result<Vec<FunctionT
     }
 
     Ok(params)
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct TypeParameter {
+    identifier: String,
+    data_type: Option<Type>,
+}
+
+impl TypeParameter {
+    pub fn new(node: &Node, content: &[u8]) -> Result<TypeParameter> {
+        let mut identifier = None;
+        let mut data_type = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "type_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
+                kind => {
+                    if TYPES.contains(&kind) {
+                        data_type = Some(Type::new(&child, content)?);
+                    } else {
+                        bail!(
+                            "[TypeParameter] unhandled child {} '{}' at {}",
+                            child.kind(),
+                            child.utf8_text(content)?,
+                            child.start_position(),
+                        )
+                    }
+                }
+            }
+        }
+
+        Ok(TypeParameter {
+            identifier: identifier.context(format!(
+                "[TypeParameter] no identifier found at {}",
+                node.start_position()
+            ))?,
+            data_type,
+        })
+    }
 }
