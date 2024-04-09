@@ -223,7 +223,7 @@ pub enum Expression {
     },
     Type(Type),
     JumpThrow(Box<Expression>),
-    JumpReturn(Option<Label>, Box<Option<Expression>>),
+    JumpReturn(Option<Label>, Option<Box<Expression>>),
     JumpContinue(Option<Label>),
     JumpBreak(Option<Label>),
     DirectlyAssignable(Box<Expression>),

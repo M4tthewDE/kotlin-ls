@@ -22,19 +22,7 @@ pub fn expression(node: &Node, content: &[u8]) -> Result<Expression> {
                 ))?,
                 content,
             )?)),
-            "return" => Expression::JumpReturn(
-                None,
-                Box::new(
-                    Expression::new(
-                        &node.child(1).context(format!(
-                            "[Expression::Jump] no child at {}",
-                            node.start_position()
-                        ))?,
-                        content,
-                    )
-                    .ok(),
-                ),
-            ),
+            "return" => Expression::JumpReturn(None, None),
             "return@" => Expression::JumpReturn(
                 Some(Label::new(
                     &node.child(1).context(format!(
@@ -43,11 +31,11 @@ pub fn expression(node: &Node, content: &[u8]) -> Result<Expression> {
                     ))?,
                     content,
                 )?),
-                Box::new(if let Some(child) = &node.child(2) {
-                    Some(Expression::new(child, content)?)
+                if let Some(child) = &node.child(2) {
+                    Some(Box::new(Expression::new(child, content)?))
                 } else {
                     None
-                }),
+                },
             ),
             "continue" => Expression::JumpContinue(None),
             "continue@" => Expression::JumpContinue(Some(Label::new(
