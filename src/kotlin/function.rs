@@ -2,7 +2,11 @@ use crate::kotlin::types::Type;
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::types::TYPES;
+use super::{
+    expression::Expression,
+    statement::{self, Statement},
+    types::TYPES,
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum FunctionModifier {
@@ -26,39 +30,26 @@ pub struct Identifier {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub struct FunctionBody {
-    pub identifiers: Vec<Identifier>,
+pub enum FunctionBody {
+    Block(Vec<Statement>),
+    Expression(Expression),
 }
 
 impl FunctionBody {
     pub fn new(node: &Node, content: &[u8]) -> Result<FunctionBody> {
-        let mut identifiers = Vec::new();
-        let mut cursor = node.walk();
-        loop {
-            let node = cursor.node();
+        let first = node.child(0).context(format!(
+            "[FunctionBody] no child at {}",
+            node.start_position()
+        ))?;
+        let second = node.child(1).context(format!(
+            "[FunctionBody] no child at {}",
+            node.start_position()
+        ))?;
 
-            if node.kind() == "simple_identifier" {
-                let name = node.utf8_text(content)?.to_string();
-                identifiers.push(Identifier {
-                    name,
-                    data_type: None,
-                });
-            }
-
-            if cursor.goto_first_child() {
-                continue;
-            }
-
-            loop {
-                if cursor.goto_next_sibling() {
-                    break;
-                }
-
-                if !cursor.goto_parent() {
-                    return Ok(FunctionBody { identifiers });
-                }
-            }
-        }
+        Ok(match first.kind() {
+            "=" => FunctionBody::Expression(Expression::new(&second, content)?),
+            _ => FunctionBody::Block(statement::get_statements(&second, content)?),
+        })
     }
 }
 

@@ -217,6 +217,10 @@ pub enum Expression {
         left: Box<Expression>,
         right: Box<Expression>,
     },
+    Range {
+        left: Box<Expression>,
+        right: Box<Expression>,
+    },
     Type(Type),
     JumpThrow(Box<Expression>),
     JumpReturn(Option<Label>, Box<Option<Expression>>),
@@ -275,6 +279,7 @@ impl Expression {
             "infix_expression" => infix_expression(node, content),
             "as_expression" => as_expression(node, content),
             "elvis_expression" => elvis_expression(node, content),
+            "range_expression" => range_expression(node, content),
             "check_expression" => check_expression(node, content),
             "callable_reference" => callable_reference(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "object_literal"
@@ -744,6 +749,25 @@ fn as_expression(node: &Node, content: &[u8]) -> Result<Expression> {
 
 fn elvis_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     Ok(Expression::Elvis {
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Elvis] too little children at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Elvis] too little children at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+    })
+}
+
+fn range_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Range {
         left: Box::new(Expression::new(
             &node.child(0).context(format!(
                 "[Expression::Elvis] too little children at {}",
