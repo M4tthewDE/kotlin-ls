@@ -257,6 +257,7 @@ pub enum Expression {
         identifier: Option<String>,
     },
     Super,
+    Spread(Box<Expression>),
 }
 
 impl Expression {
@@ -308,6 +309,7 @@ impl Expression {
             )?))),
             "indexing_expression" => indexing_expression(node, content),
             "this_expression" => this_expression(node, content),
+            "spread_expression" => spread_expression(node, content),
             _ => {
                 bail!(
                     "[Expression] unhandled child {} '{}' at {}",
@@ -1035,4 +1037,14 @@ fn this_expression(node: &Node, content: &[u8]) -> Result<Expression> {
             }
         },
     )
+}
+
+fn spread_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Spread(Box::new(Expression::new(
+        &node.child(1).context(format!(
+            "[Expression::Spread] no child at {}",
+            node.start_position()
+        ))?,
+        content,
+    )?)))
 }
