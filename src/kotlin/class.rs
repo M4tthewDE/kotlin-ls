@@ -97,6 +97,13 @@ pub enum ClassBody {
     },
     Enum {
         entries: Vec<EnumEntry>,
+        properties: Vec<Property>,
+        functions: Vec<Function>,
+        objects: Vec<Object>,
+        classes: Vec<Class>,
+        companion_objects: Vec<CompanionObject>,
+        anonymous_initializers: Vec<AnonymousInitializer>,
+        secondary_constructors: Vec<SecondaryConstructor>,
     },
 }
 
@@ -158,11 +165,39 @@ impl ClassBody {
 
     fn new_enum_class_body(node: &Node, content: &[u8]) -> Result<ClassBody> {
         let mut entries = Vec::new();
+        let mut properties: Vec<Property> = Vec::new();
+        let mut functions: Vec<Function> = Vec::new();
+        let mut objects: Vec<Object> = Vec::new();
+        let mut classes: Vec<Class> = Vec::new();
+        let mut companion_objects = Vec::new();
+        let mut anonymous_initializers = Vec::new();
+        let mut secondary_constructors = Vec::new();
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "{" | "," | "}" => {}
+                "{" | "," | "}" | ";" | "getter" | "setter" => {}
                 "enum_entry" => entries.push(EnumEntry::new(&child, content)?),
+                "property_declaration" => {
+                    properties.push(Property::new(&child, content)?);
+                }
+                "function_declaration" => {
+                    functions.push(Function::new(&child, content)?);
+                }
+                "object_declaration" => {
+                    objects.push(Object::new(&child, content)?);
+                }
+                "class_declaration" => {
+                    classes.push(Class::new(&child, content)?);
+                }
+                "companion_object" => {
+                    companion_objects.push(CompanionObject::new(&child, content)?);
+                }
+                "anonymous_initializer" => {
+                    anonymous_initializers.push(AnonymousInitializer::new(&child, content)?);
+                }
+                "secondary_constructor" => {
+                    secondary_constructors.push(SecondaryConstructor::new(&child, content)?);
+                }
                 _ => {
                     bail!(
                         "[ClassBody::Enum] unhandled child {} '{}' at {}",
@@ -174,7 +209,16 @@ impl ClassBody {
             }
         }
 
-        Ok(ClassBody::Enum { entries })
+        Ok(ClassBody::Enum {
+            entries,
+            properties,
+            functions,
+            objects,
+            classes,
+            companion_objects,
+            anonymous_initializers,
+            secondary_constructors,
+        })
     }
 }
 
