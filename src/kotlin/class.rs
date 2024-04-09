@@ -3,6 +3,7 @@ use anyhow::{bail, Context, Result};
 use tree_sitter::{Node, Tree};
 
 use super::{
+    argument::{self, Argument},
     delegation::Delegation,
     expression::Expression,
     function::{Function, Parameter},
@@ -15,15 +16,20 @@ use super::{
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct EnumEntry {
     identifier: String,
+    value_arguments: Option<Vec<Argument>>,
 }
 
 impl EnumEntry {
     fn new(node: &Node, content: &[u8]) -> Result<EnumEntry> {
         let mut identifier = None;
+        let mut value_arguments = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
+                "value_arguments" => {
+                    value_arguments = Some(argument::get_value_arguments(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "[EnumEntry] unhandled child {} '{}' at {}",
@@ -40,6 +46,7 @@ impl EnumEntry {
                 "[EnumEntry] no identifier at {}",
                 node.start_position()
             ))?,
+            value_arguments,
         })
     }
 }
