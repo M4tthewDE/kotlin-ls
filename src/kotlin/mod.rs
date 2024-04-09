@@ -48,7 +48,7 @@ impl KotlinFile {
     }
 }
 
-pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
+pub fn from_path(p: &str) -> Result<DashMap<PathBuf, Result<KotlinFile>>> {
     let mut parser = Parser::new();
     parser
         .set_language(tree_sitter_kotlin::language())
@@ -68,7 +68,7 @@ pub fn from_path(p: &str) -> Result<DashMap<PathBuf, KotlinFile>> {
             .context(format!("failed to parse {path:?}"))?;
         files.insert(
             path.clone(),
-            KotlinFile::new(&tree, &content).context(format!("failed to analyze {path:?}"))?,
+            KotlinFile::new(&tree, &content).context(format!("failed to analyze {path:?}")),
         );
     }
 

@@ -7,7 +7,7 @@ use kotlin::KotlinFile;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 pub mod kotlin;
 
@@ -32,7 +32,12 @@ impl LanguageServer for Backend {
         info!("root-uri: {:?}", params.root_uri);
 
         for file in kotlin::from_path(params.root_uri.unwrap().path()).unwrap() {
-            self.files.insert(file.0, file.1);
+            match file.1 {
+                Ok(f) => {
+                    self.files.insert(file.0, f);
+                }
+                Err(err) => error!("Failed to parse {:?}: {:?}", file.0, err),
+            }
         }
 
         info!("parsed {} kotlin files", self.files.len());
