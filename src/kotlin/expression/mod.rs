@@ -933,19 +933,11 @@ impl WhenEntry {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "->" | "else" | "," => {}
                 "when_condition" => condition = Some(WhenCondition::new(&child, content)?),
                 "control_structure_body" => {
                     body = Some(ControlStructureBody::new(&child, content)?)
                 }
-                _ => {
-                    bail!(
-                        "[WhenEntry] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
+                _ => {}
             }
         }
 
@@ -981,7 +973,7 @@ fn indexing_expression(node: &Node, content: &[u8]) -> Result<Expression> {
             content,
         )?),
         IndexingSuffix::new(
-            &node.child(0).context(format!(
+            &node.child(1).context(format!(
                 "[Expression::Indexing] no child at {}",
                 node.start_position()
             ))?,
