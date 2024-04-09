@@ -1,13 +1,14 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::{delegation::Delegation, modifier::Modifier};
+use super::{class::ClassBody, delegation::Delegation, modifier::Modifier};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Object {
     pub modifiers: Vec<Modifier>,
     pub name: String,
     pub delegations: Vec<Delegation>,
+    pub class_body: Option<ClassBody>,
 }
 
 impl Object {
@@ -15,6 +16,7 @@ impl Object {
         let mut modifiers = Vec::new();
         let mut name = None;
         let mut delegations = Vec::new();
+        let mut class_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor.clone()) {
             match child.kind() {
@@ -26,6 +28,7 @@ impl Object {
                 }
                 "type_identifier" => name = Some(child.utf8_text(content)?.to_string()),
                 "delegation_specifier" => delegations.push(Delegation::new(&child, content)?),
+                "class_body" => class_body = Some(ClassBody::new_class_body(&child, content)?),
                 _ => {
                     bail!(
                         "[Object] unhandled child {} '{}' at {}",
@@ -41,6 +44,7 @@ impl Object {
             modifiers,
             name: name.context("no name found")?,
             delegations,
+            class_body,
         })
     }
 }
