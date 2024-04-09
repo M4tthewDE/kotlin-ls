@@ -275,9 +275,8 @@ impl Expression {
             "check_expression" => check_expression(node, content),
             "callable_reference" => callable_reference(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "object_literal"
-            | "character_literal" | "lambda_literal" | "long_literal" | "real_literal" | "null" => {
-                Ok(Expression::Literal(Literal::new(node, content)?))
-            }
+            | "character_literal" | "lambda_literal" | "long_literal" | "real_literal"
+            | "hex_literal" | "null" => Ok(Expression::Literal(Literal::new(node, content)?)),
             "when_expression" => when_expression(node, content),
             "user_type" => Ok(Expression::Type(Type::new(node, content)?)),
             "jump_expression" => jump::expression(node, content),
