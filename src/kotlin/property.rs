@@ -7,7 +7,10 @@ use crate::kotlin::{
     types::Type,
 };
 
-use super::{modifier::Modifier, variable_declaration::VariableDeclaration};
+use super::{
+    modifier::Modifier,
+    variable_declaration::{MultiVariableDeclaration, VariableDeclaration},
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum PropertyMutability {
@@ -33,11 +36,16 @@ impl PropertyDelegate {
         })
     }
 }
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum PropertyVariableDeclaration {
+    Single(VariableDeclaration),
+    Multi(MultiVariableDeclaration),
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Property {
     pub modifiers: Vec<Modifier>,
-    pub variable_declaration: VariableDeclaration,
+    pub variable_declaration: PropertyVariableDeclaration,
     pub extension_type: Option<Type>,
     pub mutability: PropertyMutability,
     pub expression: Option<Expression>,
@@ -69,7 +77,14 @@ impl Property {
                 "val" => mutability = Some(PropertyMutability::Val),
                 "user_type" | "nullable_type" => extension_type = Some(Type::new(&child, content)?),
                 "variable_declaration" => {
-                    variable_declaration = Some(VariableDeclaration::new(&child, content)?)
+                    variable_declaration = Some(PropertyVariableDeclaration::Single(
+                        VariableDeclaration::new(&child, content)?,
+                    ))
+                }
+                "multi_variable_declaration" => {
+                    variable_declaration = Some(PropertyVariableDeclaration::Multi(
+                        MultiVariableDeclaration::new(&child, content)?,
+                    ))
                 }
                 "property_delegate" => delegate = Some(PropertyDelegate::new(&child, content)?),
                 "getter" => getter = Some(Getter::new(&child, content)?),
