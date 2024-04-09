@@ -3,7 +3,7 @@ use tree_sitter::Node;
 
 use crate::kotlin::function::FunctionBody;
 
-use super::modifier::Modifier;
+use super::{function::ParameterWithOptionalType, modifier::Modifier};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Getter {
@@ -52,6 +52,7 @@ impl Getter {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Setter {
     modifiers: Option<Vec<Modifier>>,
+    parameter: Option<ParameterWithOptionalType>,
     function_body: Option<FunctionBody>,
 }
 
@@ -69,12 +70,16 @@ impl Setter {
             None
         };
 
+        let mut parameter = None;
         let mut function_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
                 "set" | "(" | ")" | "modifiers" => {}
                 "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
+                "parameter_with_optional_type" => {
+                    parameter = Some(ParameterWithOptionalType::new(&child, content)?)
+                }
                 _ => {
                     bail!(
                         "[Setter] unhandled child {} '{}' at {}",
@@ -88,6 +93,7 @@ impl Setter {
 
         Ok(Setter {
             modifiers,
+            parameter,
             function_body,
         })
     }

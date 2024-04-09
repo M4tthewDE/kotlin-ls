@@ -2,6 +2,8 @@ use crate::kotlin::types::Type;
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
+use super::types::TYPES;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum FunctionModifier {
     Annotation(String),
@@ -142,6 +144,45 @@ impl Function {
             parameters,
             return_type,
             body,
+        })
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub struct ParameterWithOptionalType {
+    identifier: String,
+    data_type: Option<Type>,
+}
+
+impl ParameterWithOptionalType {
+    pub fn new(node: &Node, content: &[u8]) -> Result<ParameterWithOptionalType> {
+        let mut identifier = None;
+        let mut data_type = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
+                kind => {
+                    if TYPES.contains(&kind) {
+                        data_type = Some(Type::new(&child, content)?);
+                    } else {
+                        bail!(
+                            "[ParameterWithOptionalType] unhandled child {} '{}' at {}",
+                            child.kind(),
+                            child.utf8_text(content)?,
+                            child.start_position(),
+                        )
+                    }
+                }
+            }
+        }
+
+        Ok(ParameterWithOptionalType {
+            identifier: identifier.context(format!(
+                "[ParameterWithOptionalType] no identifier found at {}",
+                node.start_position()
+            ))?,
+            data_type,
         })
     }
 }

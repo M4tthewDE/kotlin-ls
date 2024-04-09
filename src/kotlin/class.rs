@@ -180,7 +180,7 @@ impl ClassBody {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "{" | "," | "}" | ";" | "getter" | "setter" => {}
+                "{" | "," | "}" | ";" | "getter" | "setter" | "line_comment" => {}
                 "enum_entry" => entries.push(EnumEntry::new(&child, content)?),
                 "property_declaration" => {
                     properties.push(Property::new(&child, content)?);

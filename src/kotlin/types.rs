@@ -6,7 +6,7 @@ use super::{
     function::Parameter,
 };
 
-const TYPES: [&str; 6] = [
+pub const TYPES: [&str; 6] = [
     "parenthesized_type",
     "nullable_Type",
     "user_type",
