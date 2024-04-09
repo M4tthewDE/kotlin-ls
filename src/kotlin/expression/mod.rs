@@ -772,14 +772,14 @@ fn range_expression(node: &Node, content: &[u8]) -> Result<Expression> {
     Ok(Expression::Range {
         left: Box::new(Expression::new(
             &node.child(0).context(format!(
-                "[Expression::Elvis] too little children at {}",
+                "[Expression::Range] too little children at {}",
                 node.start_position()
             ))?,
             content,
         )?),
         right: Box::new(Expression::new(
             &node.child(2).context(format!(
-                "[Expression::Elvis] too little children at {}",
+                "[Expression::Range] too little children at {}",
                 node.start_position()
             ))?,
             content,
