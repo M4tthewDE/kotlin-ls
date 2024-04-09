@@ -2,7 +2,10 @@ use crate::kotlin::property::Property;
 use anyhow::{bail, Result};
 use tree_sitter::Node;
 
-use super::{assignment::Assignment, expression::Expression};
+use super::{
+    assignment::Assignment,
+    expression::{Expression, EXPRESSIONS},
+};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Statement {
@@ -23,31 +26,17 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             "assignment" => {
                 statements.push(Statement::Assignment(Assignment::new(&child, content)?))
             }
-            "call_expression"
-            | "if_expression"
-            | "navigation_expression"
-            | "when_expression"
-            | "boolean_literal"
-            | "elvis_expression"
-            | "equality_expression"
-            | "infix_expression"
-            | "comparison_expression"
-            | "disjunction_expression"
-            | "try_expression"
-            | "null"
-            | "simple_identifier"
-            | "prefix_expression"
-            | "conjunction_expression"
-            | "additive_expression" => {
-                statements.push(Statement::Expression(Expression::new(&child, content)?))
-            }
-            _ => {
-                bail!(
-                    "[get_statements] unhandled child {} '{}' at {}",
-                    child.kind(),
-                    child.utf8_text(content)?,
-                    child.start_position(),
-                )
+            kind => {
+                if EXPRESSIONS.contains(&kind) {
+                    statements.push(Statement::Expression(Expression::new(&child, content)?))
+                } else {
+                    bail!(
+                        "[get_statementes] unhandled child {} '{}' at {}",
+                        child.kind(),
+                        child.utf8_text(content)?,
+                        child.start_position(),
+                    )
+                }
             }
         }
     }

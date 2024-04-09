@@ -15,6 +15,52 @@ use super::{
 mod jump;
 mod r#try;
 
+pub const EXPRESSIONS: [&str; 40] = [
+    // unary
+    "postfix_expression",
+    "call_expression",
+    "indexing_expression",
+    "navigation_expression",
+    "prefix_expression",
+    "as_expression",
+    "spread_expression",
+    // binary
+    "multiplicative_expression",
+    "additive_expression",
+    "range_expression",
+    "infix_expression",
+    "elvis_expression",
+    "check_expression",
+    "comparison_expression",
+    "equality_expression",
+    "conjunction_expression",
+    "disjunction_expression",
+    // primary
+    "parenthesized_expression",
+    "simple_identifier",
+    "boolean_literal",
+    "integer_literal",
+    "hex_literal",
+    "bin_literal",
+    "character_literal",
+    "real_literal",
+    "null",
+    "long_literal",
+    "unsigned_literal",
+    "string_literal",
+    "callable_reference",
+    "lambda_literal",
+    "anonymous_function",
+    "object_literal",
+    "collection_literal",
+    "this_expression",
+    "super_expression",
+    "if_expression",
+    "when_expression",
+    "try_expression",
+    "jump_expression",
+];
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum MultiplicativeOperator {
     Mul,

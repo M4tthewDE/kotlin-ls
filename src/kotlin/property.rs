@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
 use crate::kotlin::{
-    expression::Expression,
+    expression::{Expression, EXPRESSIONS},
     getter::{Getter, Setter},
     types::Type,
 };
@@ -71,34 +71,20 @@ impl Property {
                 "variable_declaration" => {
                     variable_declaration = Some(VariableDeclaration::new(&child, content)?)
                 }
-                "call_expression"
-                | "when_expression"
-                | "string_literal"
-                | "integer_literal"
-                | "boolean_literal"
-                | "long_literal"
-                | "character_literal"
-                | "object_literal"
-                | "real_literal"
-                | "postfix_expression"
-                | "equality_expression"
-                | "disjunction_expression"
-                | "check_expression"
-                | "null"
-                | "prefix_expression"
-                | "elvis_expression"
-                | "multiplicative_expression"
-                | "navigation_expression" => expression = Some(Expression::new(&child, content)?),
                 "property_delegate" => delegate = Some(PropertyDelegate::new(&child, content)?),
                 "getter" => getter = Some(Getter::new(&child, content)?),
                 "setter" => setter = Some(Setter::new(&child, content)?),
-                _ => {
-                    bail!(
-                        "[Property] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
+                kind => {
+                    if EXPRESSIONS.contains(&kind) {
+                        expression = Some(Expression::new(&child, content)?)
+                    } else {
+                        bail!(
+                            "[Property] unhandled child {} '{}' at {}",
+                            child.kind(),
+                            child.utf8_text(content)?,
+                            child.start_position(),
+                        )
+                    }
                 }
             }
         }
