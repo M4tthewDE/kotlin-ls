@@ -29,7 +29,7 @@ impl MultiplicativeOperator {
             "/" => MultiplicativeOperator::Div,
             "%" => MultiplicativeOperator::Mod,
             _ => bail!(
-                "[MultiplicativeOperator] Invalid equality operator at {}",
+                "[MultiplicativeOperator] Invalid multiplicative operator at {}",
                 node.start_position()
             ),
         })
@@ -50,6 +50,29 @@ pub enum PostfixUnaryOperator {
     Increment,
     Decrement,
     NullAssertion,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum ComparisonOperator {
+    Less,
+    Greater,
+    LessEquals,
+    GreaterEquals,
+}
+
+impl ComparisonOperator {
+    fn new(node: &Node, content: &[u8]) -> Result<ComparisonOperator> {
+        Ok(match node.utf8_text(content)? {
+            "<" => ComparisonOperator::Less,
+            ">" => ComparisonOperator::Greater,
+            "<=" => ComparisonOperator::LessEquals,
+            ">=" => ComparisonOperator::GreaterEquals,
+            _ => bail!(
+                "[ComparisonOperator] Invalid comparison operator at {}",
+                node.start_position()
+            ),
+        })
+    }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -168,6 +191,11 @@ pub enum Expression {
         operator: PostfixUnaryOperator,
         expression: Box<Expression>,
     },
+    Comparison {
+        left: Box<Expression>,
+        operator: ComparisonOperator,
+        right: Box<Expression>,
+    },
     Try {
         block: Vec<Statement>,
         catch_blocks: Vec<CatchBlock>,
@@ -188,6 +216,7 @@ impl Expression {
             "additive_expression" => additive_expression(node, content),
             "equality_expression" => equality_expression(node, content),
             "multiplicative_expression" => multiplicative_expression(node, content),
+            "comparison_expression" => comparison_expression(node, content),
             "prefix_expression" => prefix_expression(node, content),
             "postfix_expression" => postfix_expression(node, content),
             "simple_identifier" => Ok(Expression::Identifier {
@@ -497,6 +526,32 @@ fn multiplicative_expression(node: &Node, content: &[u8]) -> Result<Expression> 
         right: Box::new(Expression::new(
             &node.child(2).context(format!(
                 "[Expression::Multiplicative] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+    })
+}
+
+fn comparison_expression(node: &Node, content: &[u8]) -> Result<Expression> {
+    Ok(Expression::Comparison {
+        left: Box::new(Expression::new(
+            &node.child(0).context(format!(
+                "[Expression::Comparison] no expression found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?),
+        operator: ComparisonOperator::new(
+            &node.child(1).context(format!(
+                "[Expression::Comparison] no operator found at {}",
+                node.start_position()
+            ))?,
+            content,
+        )?,
+        right: Box::new(Expression::new(
+            &node.child(2).context(format!(
+                "[Expression::Comparison] no expression found at {}",
                 node.start_position()
             ))?,
             content,

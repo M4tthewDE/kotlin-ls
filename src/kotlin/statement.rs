@@ -31,6 +31,7 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
             | "elvis_expression"
             | "equality_expression"
             | "infix_expression"
+            | "comparison_expression"
             | "disjunction_expression"
             | "try_expression"
             | "null"

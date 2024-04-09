@@ -81,6 +81,7 @@ impl Property {
                 | "object_literal"
                 | "real_literal"
                 | "postfix_expression"
+                | "equality_expression"
                 | "disjunction_expression"
                 | "check_expression"
                 | "null"
