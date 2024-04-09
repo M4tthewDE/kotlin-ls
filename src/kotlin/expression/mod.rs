@@ -256,6 +256,7 @@ pub enum Expression {
     This {
         identifier: Option<String>,
     },
+    Super,
 }
 
 impl Expression {
@@ -281,6 +282,7 @@ impl Expression {
             "elvis_expression" => elvis_expression(node, content),
             "range_expression" => range_expression(node, content),
             "check_expression" => check_expression(node, content),
+            "super_expression" => Ok(Expression::Super),
             "callable_reference" => callable_reference(node, content),
             "boolean_literal" | "string_literal" | "integer_literal" | "object_literal"
             | "character_literal" | "lambda_literal" | "long_literal" | "real_literal"
