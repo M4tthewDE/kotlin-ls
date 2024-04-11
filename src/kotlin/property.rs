@@ -25,15 +25,19 @@ pub struct PropertyDelegate {
 
 impl PropertyDelegate {
     pub fn new(node: &Node, content: &[u8]) -> Result<PropertyDelegate> {
-        Ok(PropertyDelegate {
-            expression: Expression::new(
-                &node.child(1).context(format!(
-                    "[PropertyDelegate] no expression at {}",
-                    node.start_position(),
-                ))?,
-                content,
-            )?,
-        })
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if EXPRESSIONS.contains(&child.kind()) {
+                return Ok(PropertyDelegate {
+                    expression: Expression::new(&child, content)?,
+                });
+            }
+        }
+        bail!(
+            "[PropertyDelegate] no expression at {} - {}",
+            node.start_position(),
+            node.end_position(),
+        )
     }
 }
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]

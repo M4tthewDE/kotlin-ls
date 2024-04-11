@@ -23,10 +23,10 @@ fn test_dankchat() {
     }
 
     if !failures.is_empty() {
-        for failure in failures {
+        for failure in &failures {
             error!("{failure:?}")
         }
 
-        panic!("There were failures!");
+        panic!("There were {} failures", failures.len());
     }
 }
