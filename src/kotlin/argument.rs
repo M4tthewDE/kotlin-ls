@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use tree_sitter::Node;
 
-use crate::kotlin::expression::Expression;
+use crate::kotlin::expression::{Expression, EXPRESSIONS};
 
-use super::types::Type;
+use super::types::{Type, TYPES};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct TypeProjection {
@@ -12,15 +12,19 @@ pub struct TypeProjection {
 
 impl TypeProjection {
     fn new(node: &Node, content: &[u8]) -> Result<TypeProjection> {
-        Ok(TypeProjection {
-            data_type: Type::new(
-                &node.child(node.child_count() - 1).context(format!(
-                    "[TypeProjection] no child at {}",
-                    node.start_position()
-                ))?,
-                content,
-            )?,
-        })
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if TYPES.contains(&child.kind()) {
+                return Ok(TypeProjection {
+                    data_type: Type::new(&child, content)?,
+                });
+            }
+        }
+        bail!(
+            "[TypeProjection] no type at {} - {}",
+            node.start_position(),
+            node.end_position(),
+        )
     }
 }
 
@@ -41,33 +45,31 @@ impl Argument {
         let mut identifier = None;
         let mut annotation = None;
         let mut cursor = node.walk();
-        for child in node.children(&mut cursor).take(node.child_count() - 1) {
-            match child.kind() {
-                "=" => {}
-                "annotation" => annotation = Some(child.utf8_text(content)?.to_string()),
-                "simple_identifier" => identifier = Some(child.utf8_text(content)?.to_string()),
-                _ => {
-                    bail!(
-                        "[ValueArgument] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
+        for child in node.children(&mut cursor) {
+            let kind = child.kind();
+
+            if kind == "annotation" {
+                annotation = Some(child.utf8_text(content)?.to_string());
+            }
+
+            if (kind == "simple_identifier" && identifier.is_some()) || EXPRESSIONS.contains(&kind)
+            {
+                return Ok(Argument::Value {
+                    annotation,
+                    identifier,
+                    expression: Expression::new(&child, content)?,
+                });
+            }
+
+            if kind == "simple_identifier" {
+                identifier = Some(child.utf8_text(content)?.to_string());
             }
         }
-
-        Ok(Argument::Value {
-            annotation,
-            identifier,
-            expression: Expression::new(
-                &node.child(node.child_count() - 1).context(format!(
-                    "[ValueArgument] no child at {}",
-                    node.start_position()
-                ))?,
-                content,
-            )?,
-        })
+        bail!(
+            "[ValueArgument] no expression at {} - {}",
+            node.start_position(),
+            node.end_position(),
+        )
     }
 }
 

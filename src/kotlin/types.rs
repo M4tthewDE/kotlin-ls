@@ -8,7 +8,7 @@ use super::{
 
 pub const TYPES: [&str; 6] = [
     "parenthesized_type",
-    "nullable_Type",
+    "nullable_type",
     "user_type",
     "dynamic",
     "function_type",
