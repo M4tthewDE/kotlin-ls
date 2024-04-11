@@ -13,23 +13,20 @@ pub struct Getter {
 
 impl Getter {
     pub fn new(node: &Node, content: &[u8]) -> Result<Getter> {
-        let modifiers = if let Some(modifiers_node) = node.child(0) {
-            let mut modifiers = Vec::new();
-            let mut cursor = node.walk();
-            for child in modifiers_node.children(&mut cursor) {
-                modifiers.push(Modifier::new(&child, content)?);
-            }
-
-            Some(modifiers)
-        } else {
-            None
-        };
-
         let mut function_body = None;
+        let mut modifiers = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "get" | "(" | ")" | "modifiers" => {}
+                "get" | "(" | ")" => {}
+                "modifiers" => {
+                    let mut m = Vec::new();
+                    let mut cursor = node.walk();
+                    for child in child.children(&mut cursor) {
+                        m.push(Modifier::new(&child, content)?);
+                    }
+                    modifiers = Some(m)
+                }
                 "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
                 _ => {
                     bail!(
@@ -58,24 +55,21 @@ pub struct Setter {
 
 impl Setter {
     pub fn new(node: &Node, content: &[u8]) -> Result<Setter> {
-        let modifiers = if let Some(modifiers_node) = node.child(0) {
-            let mut modifiers = Vec::new();
-            let mut cursor = node.walk();
-            for child in modifiers_node.children(&mut cursor) {
-                modifiers.push(Modifier::new(&child, content)?);
-            }
-
-            Some(modifiers)
-        } else {
-            None
-        };
-
         let mut parameter = None;
+        let mut modifiers = None;
         let mut function_body = None;
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "set" | "(" | ")" | "modifiers" => {}
+                "set" | "(" | ")" => {}
+                "modifiers" => {
+                    let mut m = Vec::new();
+                    let mut cursor = node.walk();
+                    for child in child.children(&mut cursor) {
+                        m.push(Modifier::new(&child, content)?);
+                    }
+                    modifiers = Some(m)
+                }
                 "function_body" => function_body = Some(FunctionBody::new(&child, content)?),
                 "parameter_with_optional_type" => {
                     parameter = Some(ParameterWithOptionalType::new(&child, content)?)
