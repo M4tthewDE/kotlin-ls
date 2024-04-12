@@ -37,19 +37,35 @@ pub enum FunctionBody {
 
 impl FunctionBody {
     pub fn new(node: &Node, content: &[u8]) -> Result<FunctionBody> {
-        let first = node.child(0).context(format!(
-            "[FunctionBody] no child at {}",
-            node.start_position()
-        ))?;
-        let second = node.child(1).context(format!(
-            "[FunctionBody] no child at {}",
-            node.start_position()
-        ))?;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "=" {
+                return Ok(FunctionBody::Expression(
+                    child
+                        .next_sibling()
+                        .map(|n| Expression::new(&n, content))
+                        .context(format!(
+                            "[FunctionBody] no expression at {} - {}",
+                            node.start_position(),
+                            node.end_position(),
+                        ))??,
+                ));
+            }
+            if child.kind() == "{" {
+                return Ok(FunctionBody::Block(
+                    child
+                        .next_sibling()
+                        .map(|n| statement::get_statements(&n, content))
+                        .context(format!(
+                            "[FunctionBody] no statements at {} - {}",
+                            node.start_position(),
+                            node.end_position(),
+                        ))??,
+                ));
+            }
+        }
 
-        Ok(match first.kind() {
-            "=" => FunctionBody::Expression(Expression::new(&second, content)?),
-            _ => FunctionBody::Block(statement::get_statements(&second, content)?),
-        })
+        bail!("TODO");
     }
 }
 
