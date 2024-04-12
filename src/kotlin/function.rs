@@ -23,6 +23,36 @@ pub struct Parameter {
     pub type_identifier: Type,
 }
 
+impl Parameter {
+    pub fn new(node: &Node, content: &[u8]) -> Result<Parameter> {
+        let mut name = None;
+        let mut type_identifier = None;
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "simple_identifier" {
+                name = Some(child.utf8_text(content)?.to_string());
+            }
+
+            if TYPES.contains(&child.kind()) {
+                type_identifier = Some(Type::new(&child, content)?);
+            }
+        }
+
+        Ok(Parameter {
+            name: name.context(format!(
+                "[Parameter] no identifier found at {} - {}",
+                node.start_position(),
+                node.end_position()
+            ))?,
+            type_identifier: type_identifier.context(format!(
+                "[Parameter] no type found at {} - {}",
+                node.start_position(),
+                node.end_position()
+            ))?,
+        })
+    }
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Identifier {
     pub name: String,
@@ -117,21 +147,7 @@ impl Function {
             if child.kind() == "function_value_parameters" {
                 for child in child.children(&mut cursor) {
                     if child.kind() == "parameter" {
-                        parameters.push(Parameter {
-                            name: child
-                                .child(0)
-                                .context("no parameter name found")?
-                                .utf8_text(content)?
-                                .to_string(),
-                            type_identifier: Type::new(
-                                &child
-                                    .child(2)
-                                    .filter(|c| c.kind() != "type_modifiers")
-                                    .or_else(|| child.child(3))
-                                    .context("no type identifier found")?,
-                                content,
-                            )?,
-                        })
+                        parameters.push(Parameter::new(&child, content)?);
                     }
                 }
             }
