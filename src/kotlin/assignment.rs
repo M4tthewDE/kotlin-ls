@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use tree_sitter::Node;
 
-use super::expression::Expression;
+use super::expression::{Expression, EXPRESSIONS};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum AssignmentOperator {
@@ -38,25 +38,41 @@ pub struct Assignment {
 
 impl Assignment {
     pub fn new(node: &Node, content: &[u8]) -> Result<Assignment> {
+        let mut left = None;
+        let mut right = None;
+        let mut operator = None;
+        let mut cursor = node.walk();
+
+        for child in node.children(&mut cursor.clone()) {
+            if child.kind() == "directly_assignable_expression" {
+                for child in child.children(&mut cursor) {
+                    if EXPRESSIONS.contains(&child.kind()) {
+                        left = Some(Expression::new(&child, content)?);
+                    }
+                }
+            } else if EXPRESSIONS.contains(&child.kind()) {
+                right = Some(Expression::new(&child, content)?);
+            } else if let Ok(op) = AssignmentOperator::new(&child) {
+                operator = Some(op);
+            }
+        }
+
         Ok(Assignment {
-            left: Expression::new(
-                &node.child(0).context(format!(
-                    "[Assignment] no expression found at {}",
-                    node.start_position()
-                ))?,
-                content,
-            )?,
-            operator: AssignmentOperator::new(&node.child(1).context(format!(
-                "[Assignment] no operator found at {}",
-                node.start_position()
-            ))?)?,
-            right: Expression::new(
-                &node.child(2).context(format!(
-                    "[Assignment] no expression found at {}",
-                    node.start_position()
-                ))?,
-                content,
-            )?,
+            left: left.context(format!(
+                "[Assignment] no left expression found at {} - {}",
+                node.start_position(),
+                node.end_position(),
+            ))?,
+            operator: operator.context(format!(
+                "[Assignment] no operator found at {} - {}",
+                node.start_position(),
+                node.end_position(),
+            ))?,
+            right: right.context(format!(
+                "[Assignment] no right expression found at {} - {}",
+                node.start_position(),
+                node.end_position(),
+            ))?,
         })
     }
 }
