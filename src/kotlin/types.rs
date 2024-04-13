@@ -128,64 +128,39 @@ impl Type {
 }
 
 fn get_function_type(modifiers: Vec<TypeModifier>, node: &Node, content: &[u8]) -> Result<Type> {
-    let first_child = node.child(0).context(format!(
-        "[Type::Function] no function parameters found at {}",
-        node.start_position(),
-    ))?;
-    let (type_identifier, type_argument, parameters, return_type) = match first_child.kind() {
-        "function_type_parameters" => (
-            None,
-            None,
-            get_function_type_params(&first_child, content)?,
-            Box::new(Type::new(
-                &node.child(2).context(format!(
-                    "[Type::Function] no return type found at {}",
-                    node.start_position(),
-                ))?,
-                content,
-            )?),
-        ),
-        "type_identifier" => (
-            Some(first_child.utf8_text(content)?.to_string()),
-            Some(Box::new(argument::get_type_argument(
-                &node.child(1).context(format!(
-                    "[Type::Function] no function parameters found at {}",
-                    node.start_position(),
-                ))?,
-                content,
-            )?)),
-            get_function_type_params(
-                &node.child(2).context(format!(
-                    "[Type::Function] no function parameters found at {}",
-                    node.start_position(),
-                ))?,
-                content,
-            )?,
-            Box::new(Type::new(
-                &node
-                    .child(4)
-                    .filter(|c| c.kind() != "->")
-                    .or_else(|| node.child(5))
-                    .context(format!(
-                        "[Type::Function] no return type found at {}",
-                        node.start_position(),
-                    ))?,
-                content,
-            )?),
-        ),
-        unknown_child => {
-            bail!(
-                "[Type::Function] unhandled child {unknown_child} at {}",
-                node.start_position()
-            )
+    let mut type_identifier = None;
+    let mut type_argument = None;
+    let mut parameters = Vec::new();
+    let mut return_type = None;
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "function_type_parameters" => {
+                parameters = get_function_type_params(&child, content)?;
+            }
+            "type_identifier" => type_identifier = Some(child.utf8_text(content)?.to_string()),
+            "type_arguments" => {
+                type_argument = Some(Box::new(argument::get_type_argument(&child, content)?))
+            }
+            kind => {
+                if TYPES.contains(&kind) {
+                    return_type = Some(Type::new(&child, content)?);
+                }
+            }
         }
-    };
+    }
+
     Ok(Type::Function {
         modifiers,
         type_identifier,
         type_argument,
         parameters,
-        return_type,
+        return_type: Box::new(return_type.context(format!(
+            "[Type::Function] no return type at {} - {}",
+            node.start_position(),
+            node.end_position()
+        ))?),
     })
 }
 
