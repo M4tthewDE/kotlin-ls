@@ -61,33 +61,30 @@ pub fn get_statements(node: &Node, content: &[u8]) -> Result<Vec<Statement>> {
 }
 
 fn while_statement(node: &Node, content: &[u8]) -> Result<Statement> {
-    if let Some(last) = node.child(node.child_count() - 1) {
-        if last.kind() == ";" {
-            Ok(Statement::While(
-                Expression::new(
-                    &node.child(2).context(format!(
-                        "[Statement::While] no child at {}",
-                        node.start_position()
-                    ))?,
-                    content,
-                )?,
-                None,
-            ))
-        } else {
-            Ok(Statement::While(
-                Expression::new(
-                    &node.child(2).context(format!(
-                        "[Statement::While] no child at {}",
-                        node.start_position()
-                    ))?,
-                    content,
-                )?,
-                ControlStructureBody::new(&last, content).ok(),
-            ))
+    let mut expression = None;
+    let mut body = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "control_structure_body" => {
+                body = Some(ControlStructureBody::new(&child, content)?);
+            }
+            kind => {
+                if EXPRESSIONS.contains(&kind) {
+                    expression = Some(Expression::new(&child, content)?);
+                }
+            }
         }
-    } else {
-        bail!("[Statement::While] no child at {}", node.start_position());
     }
+
+    Ok(Statement::While(
+        expression.context(format!(
+            "[Statement::While] no expression at {} - {}",
+            node.start_position(),
+            node.end_position()
+        ))?,
+        body,
+    ))
 }
 
 fn for_statement(node: &Node, content: &[u8]) -> Result<Statement> {
