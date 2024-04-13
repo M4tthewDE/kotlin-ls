@@ -88,73 +88,44 @@ fn while_statement(node: &Node, content: &[u8]) -> Result<Statement> {
 }
 
 fn for_statement(node: &Node, content: &[u8]) -> Result<Statement> {
-    if let Some(last) = node.child(node.child_count() - 1) {
-        if last.kind() == ")" {
-            let child = node.child(node.child_count() - 5).context(format!(
-                "[Statement::For] no child at {}",
-                node.start_position()
-            ))?;
-            let parameter = match child.kind() {
-                "variable_declaration" => {
-                    ForParameter::VariableDeclaration(VariableDeclaration::new(&child, content)?)
-                }
-                "multi_variable_declaration" => ForParameter::MultiVariableDeclaration(
+    let mut parameter = None;
+    let mut body = None;
+    let mut expression = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "variable_declaration" => {
+                parameter = Some(ForParameter::VariableDeclaration(VariableDeclaration::new(
+                    &child, content,
+                )?));
+            }
+            "multi_variable_declaration" => {
+                parameter = Some(ForParameter::MultiVariableDeclaration(
                     MultiVariableDeclaration::new(&child, content)?,
-                ),
-                _ => {
-                    bail!(
-                        "[Statement::For] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
+                ))
+            }
+            "control_structure_body" => {
+                body = Some(ControlStructureBody::new(&child, content)?);
+            }
+            kind => {
+                if EXPRESSIONS.contains(&kind) {
+                    expression = Some(Expression::new(&child, content)?);
                 }
-            };
-            Ok(Statement::For(
-                Expression::new(
-                    &node.child(node.child_count() - 3).context(format!(
-                        "[Statement::For] no child at {}",
-                        node.start_position()
-                    ))?,
-                    content,
-                )?,
-                parameter,
-                None,
-            ))
-        } else {
-            let child = node.child(node.child_count() - 5).context(format!(
-                "[Statement::For] no child at {}",
-                node.start_position()
-            ))?;
-            let parameter = match child.kind() {
-                "variable_declaration" => {
-                    ForParameter::VariableDeclaration(VariableDeclaration::new(&child, content)?)
-                }
-                "multi_variable_declaration" => ForParameter::MultiVariableDeclaration(
-                    MultiVariableDeclaration::new(&child, content)?,
-                ),
-                _ => {
-                    bail!(
-                        "[Statement::For] unhandled child {} '{}' at {}",
-                        child.kind(),
-                        child.utf8_text(content)?,
-                        child.start_position(),
-                    )
-                }
-            };
-            Ok(Statement::For(
-                Expression::new(
-                    &node.child(node.child_count() - 3).context(format!(
-                        "[Statement::For] no child at {}",
-                        node.start_position()
-                    ))?,
-                    content,
-                )?,
-                parameter,
-                ControlStructureBody::new(&last, content).ok(),
-            ))
+            }
         }
-    } else {
-        bail!("[Statement::For] no child at {}", node.start_position());
     }
+
+    Ok(Statement::For(
+        expression.context(format!(
+            "[Statement::For] no expression at {} - {}",
+            node.start_position(),
+            node.end_position()
+        ))?,
+        parameter.context(format!(
+            "[Statement::For] no parameter at {} - {}",
+            node.start_position(),
+            node.end_position()
+        ))?,
+        body,
+    ))
 }
