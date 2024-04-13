@@ -486,21 +486,7 @@ impl SecondaryConstructor {
                     let mut cursor = child.walk();
                     for child in child.children(&mut cursor) {
                         if child.kind() == "parameter" {
-                            parameters.push(Parameter {
-                                name: child
-                                    .child(0)
-                                    .context("no parameter name found")?
-                                    .utf8_text(content)?
-                                    .to_string(),
-                                type_identifier: Type::new(
-                                    &child
-                                        .child(2)
-                                        .filter(|c| c.kind() != "type_modifiers")
-                                        .or_else(|| child.child(3))
-                                        .context("no type identifier found")?,
-                                    content,
-                                )?,
-                            })
+                            parameters.push(Parameter::new(&child, content)?)
                         }
                     }
                 }
